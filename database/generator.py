@@ -305,30 +305,14 @@ def _assign_free_days(
 
     for year_group, class_ids in classes_by_year.items():
 
-        available_days = list(
-            range(
-                1,
-                DAY_ORDERS + 1
-            )
-        )
+        # Deterministic allocation: distribute free days evenly (Day 6, Day 5, ...)
+        available_days = list(range(DAY_ORDERS, 0, -1))
 
-        random.shuffle(
-            available_days
-        )
+        # Sort classes deterministically by ID
+        sorted_classes = sorted(class_ids)
 
-        shuffled_classes = list(
-            class_ids
-        )
-
-        random.shuffle(
-            shuffled_classes
-        )
-
-        for class_id in shuffled_classes:
-
-            free_days[class_id] = (
-                available_days.pop()
-            )
+        for class_id in sorted_classes:
+            free_days[class_id] = available_days.pop(0) if available_days else 6
 
     return free_days
 
@@ -758,25 +742,17 @@ def _score_candidate(
     )
 
     # ------------------------------------------------
-    # Important subjects get preference.
+    # Important subjects get preference for prime morning periods.
     # ------------------------------------------------
 
-    if str(
-        task[
-            "priority"
-        ]
-    ).strip().lower() == "important":
+    is_important = str(task.get("priority", "")).strip().lower() == "important"
+    if is_important:
+        score += (period - 1) * 35
+    else:
+        score += (5 - period) * 10
 
-        score -= 20
-
-    # ------------------------------------------------
-    # Small random value prevents identical layouts.
-    # ------------------------------------------------
-
-    score += random.randint(
-        0,
-        20
-    )
+    # Deterministic tie-breaker based on day and period
+    score += (day_order * 2 + period)
 
     return score
 
@@ -820,9 +796,14 @@ def _schedule_class(
         class_tasks
     )
 
-    # Randomize first.
-    random.shuffle(
-        remaining_tasks
+    # Sort deterministically: Important first, then higher periods/week, then subject ID
+    remaining_tasks.sort(
+        key=lambda t: (
+            0 if str(t.get("priority", "")).strip().lower() == "important" else 1,
+            -int(t.get("periods_per_week", 0)),
+            int(t.get("subject_id", 0)),
+            int(t.get("task_id", 0))
+        )
     )
 
     # -----------------------------------------------
@@ -1211,14 +1192,11 @@ def _generate_once(
         tasks_by_class.keys()
     )
 
-    random.shuffle(
-        class_ids
-    )
-
+    # Sort deterministically by constraint tightness score descending, break ties with class_id
     class_ids.sort(
-        key=lambda cid: class_priority.get(
-            cid,
-            0
+        key=lambda cid: (
+            class_priority.get(cid, 0),
+            -cid
         ),
         reverse=True
     )
@@ -2352,7 +2330,7 @@ def generate_timetable_for_class(
         available_free_days = list(range(1, DAY_ORDERS + 1))
 
     for attempt in range(1, max_attempts + 1):
-        free_day = random.choice(available_free_days)
+        free_day = available_free_days[0]
         faculty_busy = set(existing_faculty_busy)
 
         class_result = _schedule_class(
