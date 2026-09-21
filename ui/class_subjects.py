@@ -43,7 +43,7 @@ class ClassSubjectsWindow:
 
         self.main_frame = ctk.CTkScrollableFrame(
             self.window,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=0
         )
 
@@ -85,7 +85,7 @@ class ClassSubjectsWindow:
             font=ctk.CTkFont(
                 size=13
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         subtitle.pack(
@@ -100,7 +100,7 @@ class ClassSubjectsWindow:
 
         form_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color=("#F8FAFC", "#1E293B"),
+            fg_color=("#F9F9FB", "#252525"),
             corner_radius=10
         )
 
@@ -234,7 +234,7 @@ class ClassSubjectsWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color="#2563EB"
+            text_color=("#27272A", "#E4E4E7")
         )
 
         self.faculty_info.grid(
@@ -295,7 +295,7 @@ class ClassSubjectsWindow:
 
         self.table_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color=("#F8FAFC", "#1E293B"),
+            fg_color=("#F9F9FB", "#252525"),
             corner_radius=10
         )
 
@@ -816,7 +816,7 @@ class ClassSubjectsWindow:
                 font=ctk.CTkFont(
                     size=14
                 ),
-                text_color=("#6B7280", "#94A3B8")
+                text_color=("#71717A", "#A1A1AA")
             )
 
             empty_label.grid(
@@ -988,7 +988,7 @@ if __name__ == "__main__":
     )
 
     ctk.set_default_color_theme(
-        "blue"
+        "dark-blue"
     )
 
     root = ctk.CTk()

@@ -30,7 +30,7 @@ class Dashboard:
         # Apply saved appearance and scaling settings
         saved_mode = get_app_setting("appearance_mode", "Light")
         ctk.set_appearance_mode(saved_mode)
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
 
         saved_scaling = get_app_setting("ui_scaling", "100%")
         try:
@@ -96,7 +96,7 @@ class Dashboard:
 
         main_frame = ctk.CTkFrame(
             self.window,
-            fg_color=("#F5F7FA", "#0F172A"),
+            fg_color=("#F4F4F5", "#121212"),
             corner_radius=0
         )
 
@@ -112,7 +112,7 @@ class Dashboard:
         sidebar = ctk.CTkFrame(
             main_frame,
             width=240,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=0
         )
 
@@ -216,7 +216,7 @@ class Dashboard:
             text="⚙   Settings",
             height=40,
             fg_color="transparent",
-            hover_color=("#EAF2FF", "#334155"),
+            hover_color=("#E4E4E7", "#2E2E2E"),
             text_color=("#374151", "#E2E8F0"),
             anchor="w",
             command=self.settings_clicked
@@ -254,7 +254,7 @@ class Dashboard:
 
         content = ctk.CTkFrame(
             main_frame,
-            fg_color=("#F5F7FA", "#0F172A"),
+            fg_color=("#F4F4F5", "#121212"),
             corner_radius=0
         )
 
@@ -271,7 +271,7 @@ class Dashboard:
         top_bar = ctk.CTkFrame(
             content,
             height=75,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=0
         )
 
@@ -329,7 +329,7 @@ class Dashboard:
                 13,
                 "bold"
             ),
-            text_color=("#374151", "#D1D5DB")
+            text_color=("#3F3F46", "#D4D4D8")
         )
 
         user_label.pack(
@@ -343,7 +343,7 @@ class Dashboard:
 
         self.page_container = ctk.CTkFrame(
             content,
-            fg_color=("#F5F7FA", "#0F172A"),
+            fg_color=("#F4F4F5", "#121212"),
             corner_radius=0
         )
 
@@ -362,7 +362,7 @@ class Dashboard:
 
         dashboard_content = ctk.CTkScrollableFrame(
             self.page_container,
-            fg_color=("#F5F7FA", "#0F172A")
+            fg_color=("#F4F4F5", "#121212")
         )
 
         dashboard_content.pack(
@@ -403,7 +403,7 @@ class Dashboard:
                 "Arial",
                 14
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         welcome_text.pack(
@@ -603,10 +603,10 @@ class Dashboard:
 
         self.recent_box = ctk.CTkFrame(
             dashboard_content,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#334155")
+            border_color=("#E4E4E7", "#383838")
         )
 
         self.recent_box.pack(
@@ -637,7 +637,7 @@ class Dashboard:
             text=text,
             height=42,
             fg_color="transparent",
-            hover_color=("#EAF2FF", "#334155"),
+            hover_color=("#E4E4E7", "#2E2E2E"),
             text_color=("#374151", "#E2E8F0"),
             anchor="w",
             font=(
@@ -671,10 +671,10 @@ class Dashboard:
             parent,
             width=280,
             height=145,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#334155")
+            border_color=("#E4E4E7", "#383838")
         )
 
         card.grid(
@@ -712,7 +712,7 @@ class Dashboard:
                 "Arial",
                 12
             ),
-            text_color=("#6B7280", "#94A3B8"),
+            text_color=("#71717A", "#A1A1AA"),
             wraplength=235,
             justify="left"
         )
@@ -751,10 +751,10 @@ class Dashboard:
         card = ctk.CTkFrame(
             parent,
             height=100,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#334155")
+            border_color=("#E4E4E7", "#383838")
         )
 
         card.grid(
@@ -778,7 +778,7 @@ class Dashboard:
                 25,
                 "bold"
             ),
-            text_color="#2563EB"
+            text_color=("#27272A", "#E4E4E7")
         )
 
         value_label.pack(
@@ -792,7 +792,7 @@ class Dashboard:
                 "Arial",
                 12
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         title_label.pack()
@@ -1010,7 +1010,7 @@ class Dashboard:
                 "Arial",
                 12
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         status.pack(
@@ -1236,13 +1236,13 @@ class Dashboard:
         )
 
     def build_faculty_homepage(self):
-        content = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F5F7FA", "#0F172A"))
+        content = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
         content.pack(fill="both", expand=True, padx=24, pady=24)
 
         user_name = self.current_user.get("username", "Faculty")
 
         # Greeting banner
-        header = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E293B"), corner_radius=14, border_width=1, border_color=("#E5E7EB", "#334155"))
+        header = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
         header.pack(fill="x", pady=(0, 20))
 
         inner = ctk.CTkFrame(header, fg_color="transparent")
@@ -1259,11 +1259,11 @@ class Dashboard:
             inner,
             text="Faculty Academic Portal • View your allocated classes, lecture slots, and teaching schedules.",
             font=("Arial", 14),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         ).pack(anchor="w", pady=(4, 0))
 
         # Main Action Card: My Timetable
-        tt_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E293B"), corner_radius=14, border_width=1, border_color=("#E5E7EB", "#334155"))
+        tt_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
         tt_card.pack(fill="x", pady=(0, 20))
 
         tt_inner = ctk.CTkFrame(tt_card, fg_color="transparent")
@@ -1280,7 +1280,7 @@ class Dashboard:
             tt_inner,
             text="Access your complete weekly timetable with subject codes, assigned classrooms, and time slots.",
             font=("Arial", 13),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         ).pack(anchor="w", pady=(4, 16))
 
         btn_row = ctk.CTkFrame(tt_inner, fg_color="transparent")
@@ -1297,7 +1297,7 @@ class Dashboard:
         view_btn.pack(side="left")
 
         # Account & Quick Guidelines Card
-        info_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E293B"), corner_radius=14, border_width=1, border_color=("#E5E7EB", "#334155"))
+        info_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
         info_card.pack(fill="x")
 
         info_inner = ctk.CTkFrame(info_card, fg_color="transparent")
@@ -1319,7 +1319,7 @@ class Dashboard:
             info_inner,
             text=guideline_text,
             font=("Arial", 13),
-            text_color=("#4B5563", "#CBD5E1"),
+            text_color=("#52525B", "#D4D4D8"),
             justify="left"
         ).pack(anchor="w", pady=(8, 0))
 
@@ -1341,7 +1341,7 @@ class Dashboard:
             header_frame,
             text="Configure program-wide appearance, text scaling, security, and session management.",
             font=("Arial", 13),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         ).pack(anchor="w", pady=(4, 0))
 
         # -------------------------------------------------------------
@@ -1363,7 +1363,7 @@ class Dashboard:
             theme_inner,
             text="Switch between Light, Dark, or System mode across the entire application instantly.",
             font=("Arial", 13),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         ).pack(anchor="w", pady=(2, 14))
 
         current_mode = get_app_setting("appearance_mode", "Light")
@@ -1396,7 +1396,7 @@ class Dashboard:
             scale_inner,
             text="Adjust text and element sizes program-wide for comfortable viewing and accessibility.",
             font=("Arial", 13),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         ).pack(anchor="w", pady=(2, 14))
 
         current_scaling = get_app_setting("ui_scaling", "100%")

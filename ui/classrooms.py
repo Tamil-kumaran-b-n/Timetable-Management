@@ -1232,7 +1232,7 @@ if __name__ == "__main__":
     )
 
     ctk.set_default_color_theme(
-        "blue"
+        "dark-blue"
     )
 
     root = ctk.CTk()

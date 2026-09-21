@@ -32,7 +32,7 @@ class ClassesWindow:
 
         self.main_frame = ctk.CTkScrollableFrame(
             self.window,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=0
         )
 
@@ -74,7 +74,7 @@ class ClassesWindow:
             font=ctk.CTkFont(
                 size=13
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         subtitle.pack(
@@ -89,7 +89,7 @@ class ClassesWindow:
 
         form_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color=("#F8FAFC", "#1E293B"),
+            fg_color=("#F9F9FB", "#252525"),
             corner_radius=10
         )
 
@@ -246,7 +246,7 @@ class ClassesWindow:
             font=ctk.CTkFont(
                 size=11
             ),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         info_label.grid(
@@ -378,7 +378,7 @@ class ClassesWindow:
 
         self.table_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color=("#F8FAFC", "#1E293B"),
+            fg_color=("#F9F9FB", "#252525"),
             corner_radius=10
         )
 
@@ -1026,7 +1026,7 @@ class ClassesWindow:
                 font=ctk.CTkFont(
                     size=14
                 ),
-                text_color=("#6B7280", "#94A3B8")
+                text_color=("#71717A", "#A1A1AA")
             )
 
             empty_label.grid(
@@ -1281,7 +1281,7 @@ class ClassesWindow:
 if __name__ == "__main__":
 
     ctk.set_appearance_mode("light")
-    ctk.set_default_color_theme("blue")
+    ctk.set_default_color_theme("dark-blue")
 
     root = ctk.CTk()
 

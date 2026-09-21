@@ -18,7 +18,7 @@ class LoginWindow:
         # Apply saved appearance and scaling settings
         saved_mode = get_app_setting("appearance_mode", "Light")
         ctk.set_appearance_mode(saved_mode)
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
 
         saved_scaling = get_app_setting("ui_scaling", "100%")
         try:
@@ -46,7 +46,7 @@ class LoginWindow:
         # Main background container with responsive dark/light color
         self.container = ctk.CTkFrame(
             self.window,
-            fg_color=("#F5F7FA", "#0F172A"),
+            fg_color=("#F4F4F5", "#121212"),
             corner_radius=0
         )
         self.container.pack(fill="both", expand=True)
@@ -65,7 +65,7 @@ class LoginWindow:
             self.container,
             text="College Academic Management Portal",
             font=("Arial", 15),
-            text_color=("#6B7280", "#94A3B8")
+            text_color=("#71717A", "#A1A1AA")
         )
         self.subtitle_label.pack(pady=(0, 14))
 
@@ -73,10 +73,10 @@ class LoginWindow:
         self.card = ctk.CTkFrame(
             self.container,
             width=480,
-            fg_color=("#FFFFFF", "#1E293B"),
+            fg_color=("#FFFFFF", "#1E1E1E"),
             corner_radius=16,
             border_width=1,
-            border_color=("#E5E7EB", "#334155")
+            border_color=("#E4E4E7", "#383838")
         )
         self.card.pack(pady=5)
 
@@ -192,7 +192,7 @@ class LoginWindow:
             text="New faculty member? Register here",
             fg_color="transparent",
             hover=False,
-            text_color=("#2563EB", "#60A5FA"),
+            text_color=("#52525B", "#A1A1AA"),
             font=("Arial", 12, "underline"),
             command=lambda: [self.mode_segment.set("Faculty Registration"), self.render_register_form()]
         )
@@ -380,7 +380,7 @@ class LoginWindow:
             text="Already have an account? Sign In",
             fg_color="transparent",
             hover=False,
-            text_color=("#2563EB", "#60A5FA"),
+            text_color=("#52525B", "#A1A1AA"),
             font=("Arial", 12, "underline"),
             command=lambda: [self.mode_segment.set("Sign In"), self.render_login_form()]
         )
