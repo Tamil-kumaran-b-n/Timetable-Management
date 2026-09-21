@@ -320,10 +320,9 @@ class Dashboard:
         )
 
         username_str = self.current_user.get("username", "Administrator")
-        role_str = self.current_user.get("role", "Administrator")
         user_label = ctk.CTkLabel(
             top_bar,
-            text=f"👤 {username_str} ({role_str})",
+            text=f"👤 {username_str}",
             font=(
                 "Arial",
                 13,
@@ -1323,9 +1322,8 @@ class Dashboard:
         ).pack(anchor="w")
 
         user_name = self.current_user.get("username", "Administrator")
-        user_role = self.current_user.get("role", "Administrator")
 
-        info_text = f"• Active Account: {user_name}\n• Role: {user_role}\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)"
+        info_text = f"• Active Account: {user_name}\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)"
         ctk.CTkLabel(
             account_inner,
             text=info_text,

@@ -75,7 +75,7 @@ class LoginWindow:
         )
         self.card.pack(pady=10)
 
-        # Mode segment (Login vs Create Account)
+        # Mode segment (Sign In vs Create Account)
         self.mode_segment = ctk.CTkSegmentedButton(
             self.card,
             values=["Sign In", "Create Account"],
@@ -204,7 +204,7 @@ class LoginWindow:
             text="Create New Account",
             font=("Arial", 20, "bold")
         )
-        reg_title.pack(pady=(0, 14))
+        reg_title.pack(pady=(0, 16))
 
         # Username / Account Name
         reg_user_label = ctk.CTkLabel(
@@ -213,34 +213,15 @@ class LoginWindow:
             font=("Arial", 13, "bold"),
             anchor="w"
         )
-        reg_user_label.pack(fill="x", pady=(0, 3))
+        reg_user_label.pack(fill="x", pady=(0, 4))
 
         self.reg_username_entry = ctk.CTkEntry(
             self.form_frame,
-            height=36,
+            height=38,
             placeholder_text="Enter new account name (min 3 chars)",
             font=("Arial", 13)
         )
-        self.reg_username_entry.pack(fill="x", pady=(0, 10))
-
-        # Role
-        role_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Role",
-            font=("Arial", 13, "bold"),
-            anchor="w"
-        )
-        role_label.pack(fill="x", pady=(0, 3))
-
-        self.reg_role_combo = ctk.CTkComboBox(
-            self.form_frame,
-            values=["Administrator", "Faculty", "Staff"],
-            height=36,
-            font=("Arial", 13),
-            state="readonly"
-        )
-        self.reg_role_combo.set("Administrator")
-        self.reg_role_combo.pack(fill="x", pady=(0, 10))
+        self.reg_username_entry.pack(fill="x", pady=(0, 12))
 
         # Password
         reg_pwd_label = ctk.CTkLabel(
@@ -249,16 +230,16 @@ class LoginWindow:
             font=("Arial", 13, "bold"),
             anchor="w"
         )
-        reg_pwd_label.pack(fill="x", pady=(0, 3))
+        reg_pwd_label.pack(fill="x", pady=(0, 4))
 
         self.reg_password_entry = ctk.CTkEntry(
             self.form_frame,
-            height=36,
+            height=38,
             placeholder_text="Enter password (min 4 chars)",
             show="*",
             font=("Arial", 13)
         )
-        self.reg_password_entry.pack(fill="x", pady=(0, 10))
+        self.reg_password_entry.pack(fill="x", pady=(0, 12))
 
         # Confirm Password
         reg_confirm_label = ctk.CTkLabel(
@@ -267,16 +248,16 @@ class LoginWindow:
             font=("Arial", 13, "bold"),
             anchor="w"
         )
-        reg_confirm_label.pack(fill="x", pady=(0, 3))
+        reg_confirm_label.pack(fill="x", pady=(0, 4))
 
         self.reg_confirm_entry = ctk.CTkEntry(
             self.form_frame,
-            height=36,
+            height=38,
             placeholder_text="Re-type password",
             show="*",
             font=("Arial", 13)
         )
-        self.reg_confirm_entry.pack(fill="x", pady=(0, 6))
+        self.reg_confirm_entry.pack(fill="x", pady=(0, 8))
 
         # Show password toggle
         self.reg_show_pwd_var = ctk.BooleanVar(value=False)
@@ -287,7 +268,7 @@ class LoginWindow:
             command=self.toggle_reg_password,
             font=("Arial", 12)
         )
-        reg_show_pwd_check.pack(anchor="w", pady=(0, 14))
+        reg_show_pwd_check.pack(anchor="w", pady=(0, 16))
 
         # Register button
         self.reg_submit_button = ctk.CTkButton(
@@ -299,7 +280,7 @@ class LoginWindow:
             hover_color="#059669",
             command=self.register_user
         )
-        self.reg_submit_button.pack(fill="x", pady=(0, 10))
+        self.reg_submit_button.pack(fill="x", pady=(0, 12))
 
         # Switch link button
         switch_btn = ctk.CTkButton(
@@ -342,8 +323,8 @@ class LoginWindow:
         if user:
             messagebox.showinfo(
                 "Login Successful",
-                f"Welcome, {user.get('username', 'User')}!\n\n"
-                f"Logged in as {user.get('role', 'Administrator')}.",
+                f"Welcome, {user.get('username', 'Admin')}!\n\n"
+                f"Login successful.",
                 parent=self.window
             )
 
@@ -370,7 +351,6 @@ class LoginWindow:
         username = self.reg_username_entry.get().strip()
         password = self.reg_password_entry.get()
         confirm_pwd = self.reg_confirm_entry.get()
-        role = self.reg_role_combo.get().strip() or "Administrator"
 
         if not username:
             messagebox.showwarning("Create Account", "Please enter an account name.", parent=self.window)
@@ -397,7 +377,7 @@ class LoginWindow:
             self.reg_confirm_entry.focus()
             return
 
-        success, msg = add_user(username, password, role)
+        success, msg = add_user(username, password)
         if not success:
             messagebox.showerror("Create Account Failed", msg, parent=self.window)
             return
