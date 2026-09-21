@@ -62,6 +62,8 @@ class Dashboard:
         # Browser-style history for pages rendered in the dashboard.
         self.history = ["home"]
         self.history_index = 0
+        self.cached_pages = {}
+        self.cached_page_instances = {}
 
         # ====================================================
         # STATISTIC LABELS
@@ -361,7 +363,16 @@ class Dashboard:
 
         self.show_page("home", add_history=False)
 
-    def build_homepage(self):
+    def build_homepage_in_container(self, target_container):
+        is_faculty = (self.current_user.get('role') == 'Faculty')
+        if is_faculty:
+            self.build_faculty_homepage(target_container)
+            return
+        dashboard_content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
+        dashboard_content.pack(fill='both', expand=True, padx=20, pady=20)
+        self._build_homepage_content(dashboard_content)
+
+    def _build_homepage_content(self, dashboard_content):
         is_faculty = (self.current_user.get("role") == "Faculty")
         if is_faculty:
             self.build_faculty_homepage()
@@ -815,216 +826,79 @@ class Dashboard:
     # ========================================================
 
     def refresh_dashboard(self):
-
-        # ====================================================
-        # FACULTY COUNT
-        # ====================================================
-
         try:
-
-            faculty_records = get_all_faculty()
-
-            faculty_count = len(
-                faculty_records
-            )
-
+            from database.database import get_connection
+            conn = get_connection()
+            cursor = conn.execute("""
+                SELECT
+                    (SELECT COUNT(*) FROM faculty),
+                    (SELECT COUNT(*) FROM subjects),
+                    (SELECT COUNT(*) FROM classrooms),
+                    (SELECT COUNT(*) FROM timetable)
+            """)
+            row = cursor.fetchone()
+            conn.close()
+            faculty_count, subject_count, classroom_count, timetable_count = row if row else (0, 0, 0, 0)
         except Exception:
-
-            faculty_count = 0
-
-        # ====================================================
-        # SUBJECT COUNT
-        # ====================================================
-
-        try:
-
-            subject_records = get_all_subjects()
-
-            subject_count = len(
-                subject_records
-            )
-
-        except Exception:
-
-            subject_count = 0
-
-        # ====================================================
-        # CLASSROOM COUNT
-        # ====================================================
-
-        try:
-
-            classroom_records = get_all_classrooms()
-
-            classroom_count = len(
-                classroom_records
-            )
-
-        except Exception:
-
-            classroom_count = 0
-
-        # ====================================================
-        # TIMETABLE COUNT
-        # ====================================================
-
-        try:
-
-            timetable_records = get_all_timetable()
-
-            timetable_count = len(
-                timetable_records
-            )
-
-        except Exception:
-
-            timetable_count = 0
-
-        # ====================================================
-        # UPDATE LABELS
-        # ====================================================
+            faculty_count = subject_count = classroom_count = timetable_count = 0
 
         if "faculty" in self.stat_value_labels:
-
-            self.stat_value_labels[
-                "faculty"
-            ].configure(
-                text=str(
-                    faculty_count
-                )
-            )
-
+            self.stat_value_labels["faculty"].configure(text=str(faculty_count))
         if "subjects" in self.stat_value_labels:
-
-            self.stat_value_labels[
-                "subjects"
-            ].configure(
-                text=str(
-                    subject_count
-                )
-            )
-
+            self.stat_value_labels["subjects"].configure(text=str(subject_count))
         if "classrooms" in self.stat_value_labels:
-
-            self.stat_value_labels[
-                "classrooms"
-            ].configure(
-                text=str(
-                    classroom_count
-                )
-            )
-
+            self.stat_value_labels["classrooms"].configure(text=str(classroom_count))
         if "timetables" in self.stat_value_labels:
+            self.stat_value_labels["timetables"].configure(text=str(timetable_count))
 
-            self.stat_value_labels[
-                "timetables"
-            ].configure(
-                text=str(
-                    timetable_count
-                )
-            )
-
-        # ====================================================
-        # UPDATE RECENT TIMETABLE SECTION
-        # ====================================================
-
-        self.refresh_recent_timetables()
+        self.refresh_recent_timetables(timetable_count)
 
     # ========================================================
     # RECENT TIMETABLES
     # ========================================================
 
-    def refresh_recent_timetables(self):
-
-        if not hasattr(
-            self,
-            "recent_box"
-        ):
-
+    def refresh_recent_timetables(self, timetable_count=None):
+        if not hasattr(self, "recent_box"):
             return
 
-        # Clear old content
-
-        for widget in (
-            self.recent_box
-            .winfo_children()
-        ):
-
+        for widget in self.recent_box.winfo_children():
             widget.destroy()
 
-        try:
+        if timetable_count is None:
+            try:
+                from database.database import get_connection
+                conn = get_connection()
+                cursor = conn.execute("SELECT COUNT(*) FROM timetable")
+                timetable_count = cursor.fetchone()[0]
+                conn.close()
+            except Exception:
+                timetable_count = 0
 
-            timetable_records = get_all_timetable()
-
-        except Exception:
-
-            timetable_records = []
-
-        # ====================================================
-        # NO TIMETABLE
-        # ====================================================
-
-        if not timetable_records:
-
+        if timetable_count == 0:
             no_data = ctk.CTkLabel(
                 self.recent_box,
                 text="No timetables generated yet.",
-                font=(
-                    "Arial",
-                    14
-                ),
+                font=("Arial", 14),
                 text_color=("#9CA3AF", "#64748B")
             )
-
-            no_data.pack(
-                pady=35
-            )
-
+            no_data.pack(pady=35)
             return
-
-        # ====================================================
-        # TIMETABLE EXISTS
-        # ====================================================
 
         info = ctk.CTkLabel(
             self.recent_box,
-            text=(
-                f"{len(timetable_records)} "
-                f"timetable entries are currently generated."
-            ),
-            font=(
-                "Arial",
-                14
-            ),
+            text=f"{timetable_count} timetable slot(s) are currently generated and active.",
+            font=("Arial", 14),
             text_color=("#374151", "#E2E8F0")
         )
-
-        info.pack(
-            anchor="w",
-            padx=20,
-            pady=(18, 5)
-        )
-
-        # Show a small status line
+        info.pack(anchor="w", padx=20, pady=(18, 5))
 
         status = ctk.CTkLabel(
             self.recent_box,
-            text=(
-                "The generated timetable is available "
-                "from the View Timetable section."
-            ),
-            font=(
-                "Arial",
-                12
-            ),
+            text="The generated schedule can be viewed and exported from the View Timetable section.",
+            font=("Arial", 12),
             text_color=("#71717A", "#A1A1AA")
         )
-
-        status.pack(
-            anchor="w",
-            padx=20,
-            pady=(0, 18)
-        )
+        status.pack(anchor="w", padx=20, pady=(0, 18))
 
     # ========================================================
     # DASHBOARD FOCUS
@@ -1179,9 +1053,6 @@ class Dashboard:
             self.history.append(page)
             self.history_index += 1
 
-        for child in self.page_container.winfo_children():
-            child.destroy()
-
         titles = {
             "home": "Homepage",
             "faculty": "Faculty Management",
@@ -1193,33 +1064,66 @@ class Dashboard:
             "view_timetable": "View Timetable",
             "settings": "Settings",
         }
-        self.page_title.configure(text=titles[page])
+        self.page_title.configure(text=titles.get(page, "Homepage"))
 
-        if page == "home":
-            self.build_homepage()
-        elif page == "faculty":
-            FacultyWindow(self.window, container=self.page_container,
-                          navigate=self.show_page)
-        elif page == "subjects":
-            SubjectsWindow(self.window, container=self.page_container)
-        elif page == "classrooms":
-            ClassroomsWindow(self.window, container=self.page_container)
-        elif page == "classes":
-            ClassesWindow(self.window, container=self.page_container)
-        elif page == "assignments":
-            AssignmentsWindow(self.window, container=self.page_container)
-        elif page == "generate":
-            GenerateTimetableWindow(self.window, container=self.page_container,
-                                    navigate=self.show_page)
-        elif page == "view_timetable":
-            is_faculty = (self.current_user.get("role") == "Faculty")
-            ViewTimetableWindow(
-                self.window,
-                container=self.page_container,
-                faculty_user=self.current_user if is_faculty else None
+        # Hide all cached page containers instantly (0ms overhead)
+        for p_name, p_frame in self.cached_pages.items():
+            p_frame.pack_forget()
+
+        # If page not yet created, create container frame and instantiate page once
+        if page not in self.cached_pages:
+            page_frame = ctk.CTkFrame(
+                self.page_container,
+                fg_color="transparent",
+                corner_radius=0
             )
-        else:
-            self.build_settings_page()
+            self.cached_pages[page] = page_frame
+
+            if page == "home":
+                self.build_homepage_in_container(page_frame)
+            elif page == "faculty":
+                inst = FacultyWindow(self.window, container=page_frame, navigate=self.show_page)
+                self.cached_page_instances["faculty"] = inst
+            elif page == "subjects":
+                inst = SubjectsWindow(self.window, container=page_frame)
+                self.cached_page_instances["subjects"] = inst
+            elif page == "classrooms":
+                inst = ClassroomsWindow(self.window, container=page_frame)
+                self.cached_page_instances["classrooms"] = inst
+            elif page == "classes":
+                inst = ClassesWindow(self.window, container=page_frame)
+                self.cached_page_instances["classes"] = inst
+            elif page == "assignments":
+                inst = AssignmentsWindow(self.window, container=page_frame)
+                self.cached_page_instances["assignments"] = inst
+            elif page == "generate":
+                inst = GenerateTimetableWindow(self.window, container=page_frame, navigate=self.show_page)
+                self.cached_page_instances["generate"] = inst
+            elif page == "view_timetable":
+                is_faculty = (self.current_user.get("role") == "Faculty")
+                inst = ViewTimetableWindow(
+                    self.window,
+                    container=page_frame,
+                    faculty_user=self.current_user if is_faculty else None
+                )
+                self.cached_page_instances["view_timetable"] = inst
+            else:
+                self.build_settings_page_in_container(page_frame)
+
+        # Instantly show the cached page
+        self.cached_pages[page].pack(fill="both", expand=True)
+
+        # If home page, update fast aggregate statistics
+        if page == "home":
+            self.refresh_dashboard()
+        elif page in ["view_timetable", "generate"]:
+            # Quick refresh of dropdown options in case data changed
+            inst = self.cached_page_instances.get(page)
+            if inst:
+                if hasattr(inst, "load_classes_dropdown"):
+                    inst.load_classes_dropdown()
+                if hasattr(inst, "load_dropdowns"):
+                    inst.load_dropdowns()
 
         self.update_navigation_buttons()
 
@@ -1242,7 +1146,8 @@ class Dashboard:
                    else "disabled")
         )
 
-    def build_faculty_homepage(self):
+    def build_faculty_homepage(self, target_container):
+        content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
         content = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
         content.pack(fill="both", expand=True, padx=24, pady=24)
 
@@ -1330,7 +1235,8 @@ class Dashboard:
             justify="left"
         ).pack(anchor="w", pady=(8, 0))
 
-    def build_settings_page(self):
+    def build_settings_page_in_container(self, target_container):
+        settings_content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
         page = ctk.CTkScrollableFrame(self.page_container, fg_color="transparent")
         page.pack(fill="both", expand=True, padx=30, pady=25)
 
