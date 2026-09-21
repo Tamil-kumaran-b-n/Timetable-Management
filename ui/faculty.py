@@ -32,9 +32,6 @@ class FacultyWindow:
 
         self.selected_id = None
 
-        ctk.set_appearance_mode("Light")
-        ctk.set_default_color_theme("dark-blue")
-
         self.create_ui()
         self.load_faculty()
 

@@ -51,12 +51,6 @@ class AssignmentsWindow:
             self.window.geometry("1200x760")
             self.window.minsize(1050, 680)
 
-        ctk.set_appearance_mode(
-            "Light"
-        )
-
-        ctk.set_default_color_theme("dark-blue")
-
         self.create_ui()
 
         self.load_dropdowns()

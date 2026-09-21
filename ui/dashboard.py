@@ -126,18 +126,20 @@ class Dashboard:
         )
 
         # ====================================================
-        # APPLICATION TITLE
+        # APPLICATION TITLE & NAVIGATION BASED ON ROLE
         # ====================================================
+        is_admin = (self.current_user.get("role") in ["Administrator", "Admin", "admin"])
 
+        app_title_text = "SMART\nTIMETABLE" if is_admin else "FACULTY\nPORTAL"
         app_title = ctk.CTkLabel(
             sidebar,
-            text="SMART\nTIMETABLE",
+            text=app_title_text,
             font=(
                 "Arial",
                 22,
                 "bold"
             ),
-            text_color=("#1F2937", "#F1F5F9")
+            text_color=("#18181B", "#F4F4F5")
         )
 
         app_title.pack(
@@ -146,13 +148,13 @@ class Dashboard:
 
         nav_label = ctk.CTkLabel(
             sidebar,
-            text="MAIN MENU",
+            text="MAIN MENU" if is_admin else "FACULTY MENU",
             font=(
                 "Arial",
                 11,
                 "bold"
             ),
-            text_color=("#9CA3AF", "#64748B")
+            text_color=("#71717A", "#A1A1AA")
         )
 
         nav_label.pack(
@@ -162,50 +164,58 @@ class Dashboard:
         )
 
         # ====================================================
-        # NAVIGATION
+        # NAVIGATION BUTTONS - ADMIN VS NON-ADMIN
         # ====================================================
 
-        self.create_nav_button(
-            sidebar,
-            "⌂   Home",
-            self.home_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "▣   Faculty",
-            self.faculty_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "▤   Subjects",
-            self.subjects_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "▥   Classrooms",
-            self.classrooms_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "◈   Classes & Semesters",
-            self.classes_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "▦   Generate Timetable",
-            self.generate_clicked
-        )
-
-        self.create_nav_button(
-            sidebar,
-            "☷   View Timetable",
-            self.view_timetable_clicked
-        )
+        if is_admin:
+            # Full admin control tabs
+            self.create_nav_button(
+                sidebar,
+                "⌂   Home",
+                self.home_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "▣   Faculty",
+                self.faculty_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "▤   Subjects",
+                self.subjects_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "▥   Classrooms",
+                self.classrooms_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "◈   Classes & Semesters",
+                self.classes_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "▦   Generate Timetable",
+                self.generate_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "☷   View Timetable",
+                self.view_timetable_clicked
+            )
+        else:
+            # Non-admin / Faculty only sees Home and My Timetable
+            self.create_nav_button(
+                sidebar,
+                "⌂   Home",
+                self.home_clicked
+            )
+            self.create_nav_button(
+                sidebar,
+                "☷   My Timetable",
+                self.view_timetable_clicked
+            )
 
         # ====================================================
         # SETTINGS
