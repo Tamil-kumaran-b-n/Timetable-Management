@@ -97,9 +97,9 @@ def create_timetable_table():
 # GET WORKLOADS
 # ============================================================
 
-def _get_workloads():
+def _get_workloads(target_class_id=None):
     """
-    Gets all faculty workload assignments.
+    Gets faculty workload assignments (all classes or a specific class).
 
     Faculty Workload is the source of truth.
     """
@@ -109,9 +109,14 @@ def _get_workloads():
     conn = get_connection()
 
     try:
+        where_clause = ""
+        params = ()
+        if target_class_id is not None:
+            where_clause = "WHERE fw.class_id = ?"
+            params = (target_class_id,)
 
         cursor = conn.execute(
-            """
+            f"""
             SELECT
                 fw.id,
                 fw.faculty_id,
@@ -141,6 +146,8 @@ def _get_workloads():
             INNER JOIN subjects s
                 ON fw.subject_id = s.id
 
+            {where_clause}
+
             ORDER BY
                 fw.class_id,
 
@@ -153,7 +160,8 @@ def _get_workloads():
                 fw.periods_per_week DESC,
 
                 fw.id
-            """
+            """,
+            params
         )
 
         return cursor.fetchall()
@@ -1483,10 +1491,11 @@ def _validate_schedule(
 # ============================================================
 
 def _save_timetable(
-    timetable
+    timetable,
+    target_class_id=None
 ):
     """
-    Saves generated timetable.
+    Saves generated timetable (either whole database or for a specific target class).
 
     Different classes may have the same
     Day Order + Period.
@@ -1501,12 +1510,18 @@ def _save_timetable(
     try:
 
         # -----------------------------------------------
-        # Remove old generated timetable.
+        # Remove old generated timetable for target class or all.
         # -----------------------------------------------
 
-        conn.execute(
-            "DELETE FROM timetable"
-        )
+        if target_class_id is not None:
+            conn.execute(
+                "DELETE FROM timetable WHERE class_id = ?",
+                (target_class_id,)
+            )
+        else:
+            conn.execute(
+                "DELETE FROM timetable"
+            )
 
         # -----------------------------------------------
         # Insert new timetable.
@@ -1569,8 +1584,11 @@ def _save_timetable(
 # ============================================================
 
 def generate_timetable(
-    max_attempts=300
+    max_attempts=300,
+    target_class_id=None
 ):
+    if target_class_id is not None:
+        return generate_timetable_for_class(target_class_id, max_attempts=max_attempts)
     """
     Main timetable generation function.
 
@@ -2211,3 +2229,152 @@ def clear_timetable():
 # ============================================================
 
 create_timetable_table()
+
+# ============================================================
+# GENERATE FOR SINGLE CLASS
+# ============================================================
+
+def generate_timetable_for_class(
+    target_class_id,
+    max_attempts=300
+):
+    """
+    Generates or regenerates timetable for a single specific class.
+    Leaves all other classes' timetables in place, and ensures
+    no faculty clashes against already-scheduled classes.
+    """
+    create_workload_table()
+    create_timetable_table()
+
+    raw_workloads = _get_workloads(target_class_id=target_class_id)
+    if not raw_workloads:
+        raise ValueError(
+            "No faculty workload found for the selected class.\n\n"
+            "Please assign faculty workload for this class first."
+        )
+
+    workloads = []
+    class_info = {}
+
+    for row in raw_workloads:
+        (
+            workload_id,
+            faculty_id,
+            class_id,
+            subject_id,
+            priority,
+            periods_per_week,
+            faculty_name,
+            class_name,
+            department,
+            semester,
+            academic_year,
+            subject_code,
+            subject_name
+        ) = row
+
+        periods_per_week = int(periods_per_week)
+        if periods_per_week <= 0:
+            raise ValueError(f"Invalid periods/week for subject {subject_name}")
+
+        workload = {
+            "workload_id": workload_id,
+            "faculty_id": faculty_id,
+            "class_id": class_id,
+            "subject_id": subject_id,
+            "priority": priority,
+            "periods_per_week": periods_per_week,
+            "faculty_name": faculty_name,
+            "class_name": class_name,
+            "department": department,
+            "semester": semester,
+            "academic_year": academic_year,
+            "subject_code": subject_code,
+            "subject_name": subject_name
+        }
+        workloads.append(workload)
+        if class_id not in class_info:
+            class_info[class_id] = {
+                "class_name": class_name,
+                "department": department,
+                "semester": semester,
+                "academic_year": academic_year,
+                "year_group": _get_year_group(class_name, academic_year)
+            }
+
+    total_periods = sum(w["periods_per_week"] for w in workloads)
+    if total_periods != REQUIRED_TEACHING_PERIODS:
+        cname = class_info[target_class_id]["class_name"]
+        raise ValueError(
+            f"The selected class '{cname}' has {total_periods} periods assigned.\n\n"
+            f"It must have exactly {REQUIRED_TEACHING_PERIODS} teaching periods to generate a valid timetable."
+        )
+
+    tasks = _build_tasks(workloads, class_info)
+
+    # Load existing commitments of faculty from other classes
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            """
+            SELECT t.day_order, t.period, t.faculty_id, t.class_id, c.class_name, c.academic_year
+            FROM timetable t
+            INNER JOIN classes c ON t.class_id = c.id
+            WHERE t.class_id != ?
+            """,
+            (target_class_id,)
+        )
+        existing_rows = cursor.fetchall()
+    finally:
+        conn.close()
+
+    existing_faculty_busy = {(r[0], r[1], r[2]) for r in existing_rows}
+
+    # Find used free days for same-year classes
+    target_year = class_info[target_class_id]["year_group"]
+    used_same_year_free_days = set()
+
+    other_classes_slots = {}
+    for r in existing_rows:
+        day_o, per, fac, cid, cname, ac_yr = r
+        other_classes_slots.setdefault(cid, {"year_group": _get_year_group(cname, ac_yr), "p5_days": set()})
+        if per == FREE_PERIOD:
+            other_classes_slots[cid]["p5_days"].add(day_o)
+
+    for cid, cdata in other_classes_slots.items():
+        if cdata["year_group"] == target_year:
+            missing_p5 = set(range(1, DAY_ORDERS + 1)) - cdata["p5_days"]
+            if missing_p5:
+                used_same_year_free_days.add(next(iter(missing_p5)))
+
+    available_free_days = [d for d in range(1, DAY_ORDERS + 1) if d not in used_same_year_free_days]
+    if not available_free_days:
+        available_free_days = list(range(1, DAY_ORDERS + 1))
+
+    for attempt in range(1, max_attempts + 1):
+        free_day = random.choice(available_free_days)
+        faculty_busy = set(existing_faculty_busy)
+
+        class_result = _schedule_class(
+            target_class_id,
+            tasks,
+            free_day,
+            faculty_busy
+        )
+
+        if class_result is None:
+            continue
+
+        timetable_dict = {}
+        for entry in class_result:
+            key = (entry["day_order"], entry["period"], entry["class_id"])
+            timetable_dict[key] = entry
+
+        _save_timetable(timetable_dict, target_class_id=target_class_id)
+        return True
+
+    cname = class_info[target_class_id]["class_name"]
+    raise ValueError(
+        f"Unable to generate schedule for '{cname}' without faculty conflicts against existing classes after {max_attempts} attempts.\n\n"
+        f"Please check faculty assignments or adjust workload."
+    )

@@ -52,7 +52,7 @@ class ClassesWindow:
                 size=26,
                 weight="bold"
             ),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         )
 
         title.pack(
@@ -110,7 +110,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         )
 
         department_label.grid(
@@ -146,7 +146,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         )
 
         duration_label.grid(
@@ -189,7 +189,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         )
 
         year_label.grid(
@@ -1001,8 +1001,8 @@ class ClassesWindow:
                     size=13,
                     weight="bold"
                 ),
-                text_color=("#111827", "#F8FAFC"),
-                fg_color="#E5E7EB",
+                text_color=("#18181B", "#F4F4F5"),
+                fg_color=("#E4E4E7", "#27272A"),
                 corner_radius=4
             )
 

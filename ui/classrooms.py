@@ -29,13 +29,13 @@ class ClassroomsWindow:
         # COLORS
         # ====================================================
 
-        self.bg_color = "#FFFFFF"
-        self.card_color = "#F8FAFC"
-        self.header_color = "#E5E7EB"
-        self.row_color = "#FFFFFF"
-        self.text_color = "#111827"
-        self.secondary_text = "#6B7280"
-        self.border_color = "#E5E7EB"
+        self.bg_color = ("#F4F4F5", "#121212")
+        self.card_color = ("#FFFFFF", "#1E1E1E")
+        self.header_color = ("#E4E4E7", "#27272A")
+        self.row_color = ("#FFFFFF", "#1E1E1E")
+        self.text_color = ("#18181B", "#F4F4F5")
+        self.secondary_text = ("#71717A", "#A1A1AA")
+        self.border_color = ("#E4E4E7", "#383838")
 
         self.button_blue = "#3B92D0"
         self.button_blue_hover = "#2F7FB9"
@@ -930,11 +930,7 @@ class ClassroomsWindow:
             # Row background
             # ----------------------------------------
 
-            row_bg = (
-                "#FFFFFF"
-                if row_index % 2 == 1
-                else "#F9FAFB"
-            )
+            row_bg = ("#FFFFFF", "#1E1E1E") if row_index % 2 == 1 else ("#F9FAFB", "#242424")
 
             # ----------------------------------------
             # Data cells

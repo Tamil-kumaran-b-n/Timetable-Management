@@ -1110,6 +1110,8 @@ class ViewTimetableWindow:
                 size=12,
                 weight="bold"
             ),
+            text_color=("#18181B", "#F4F4F5"),
+            fg_color=("#E4E4E7", "#27272A"),
             corner_radius=8,
             height=46
         )
@@ -1151,7 +1153,10 @@ class ViewTimetableWindow:
 
                 cell = ctk.CTkFrame(
                     self.grid_container,
-                    corner_radius=8
+                    corner_radius=8,
+                    fg_color=("#FFFFFF", "#1E1E1E"),
+                    border_width=1,
+                    border_color=("#E4E4E7", "#383838")
                 )
 
                 cell.grid(
@@ -1239,6 +1244,7 @@ class ViewTimetableWindow:
                         size=12,
                         weight="bold"
                     ),
+                    text_color=("#18181B", "#F4F4F5"),
                     anchor="center"
                 ).pack(
                     fill="x",
@@ -1257,6 +1263,7 @@ class ViewTimetableWindow:
                         size=10,
                         weight="bold"
                     ),
+                    text_color=("#374151", "#E4E4E7"),
                     wraplength=150,
                     justify="center",
                     anchor="center"
@@ -1271,6 +1278,7 @@ class ViewTimetableWindow:
                 # FACULTY / CLASS
                 # ------------------------------------------
 
+                badge_color = ("#1E293B", "#38BDF8") if mode == "faculty" else ("#71717A", "#A1A1AA")
                 ctk.CTkLabel(
                     cell,
                     text=(
@@ -1278,12 +1286,13 @@ class ViewTimetableWindow:
                         f"{third_line}"
                     ),
                     font=ctk.CTkFont(
-                        size=9
+                        size=10,
+                        weight="bold" if mode == "faculty" else "normal"
                     ),
                     wraplength=150,
                     justify="center",
                     anchor="center",
-                    text_color="gray"
+                    text_color=badge_color
                 ).pack(
                     fill="x",
                     padx=5,

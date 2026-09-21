@@ -95,7 +95,7 @@ class AssignmentsWindow:
             header,
             text="Faculty Workload Management",
             font=("Arial", 25, "bold"),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         ).pack(
             side="left",
             padx=30
@@ -433,7 +433,7 @@ class AssignmentsWindow:
             list_card,
             text="Assigned Faculty Workloads",
             font=("Arial", 18, "bold"),
-            text_color=("#111827", "#F8FAFC")
+            text_color=("#18181B", "#F4F4F5")
         ).pack(
             anchor="w",
             padx=20,
@@ -1299,8 +1299,8 @@ class AssignmentsWindow:
                 width=width,
                 height=40,
                 font=("Arial", 12, "bold"),
-                text_color=("#111827", "#F8FAFC"),
-                fg_color="#E5E7EB",
+                text_color=("#18181B", "#F4F4F5"),
+                fg_color=("#E4E4E7", "#27272A"),
                 corner_radius=5,
                 anchor="center"
             ).grid(
