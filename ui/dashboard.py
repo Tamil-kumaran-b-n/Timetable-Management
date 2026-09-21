@@ -62,8 +62,6 @@ class Dashboard:
         # Browser-style history for pages rendered in the dashboard.
         self.history = ["home"]
         self.history_index = 0
-        self.cached_pages = {}
-        self.cached_page_instances = {}
 
         # ====================================================
         # STATISTIC LABELS
@@ -76,12 +74,6 @@ class Dashboard:
         # ====================================================
 
         self.create_dashboard()
-
-        # ====================================================
-        # AUTOMATIC REFRESH
-        # ====================================================
-
-        # FocusIn binding removed to eliminate UI freezing and redundant DB polling
 
     # ========================================================
     # CREATE DASHBOARD
@@ -217,7 +209,7 @@ class Dashboard:
             )
 
         # ====================================================
-        # SETTINGS
+        # SETTINGS & LOGOUT
         # ====================================================
 
         settings_button = ctk.CTkButton(
@@ -347,7 +339,7 @@ class Dashboard:
         )
 
         # ====================================================
-        # DASHBOARD CONTENT
+        # DASHBOARD CONTENT CONTAINER
         # ====================================================
 
         self.page_container = ctk.CTkFrame(
@@ -363,16 +355,7 @@ class Dashboard:
 
         self.show_page("home", add_history=False)
 
-    def build_homepage_in_container(self, target_container):
-        is_faculty = (self.current_user.get('role') == 'Faculty')
-        if is_faculty:
-            self.build_faculty_homepage(target_container)
-            return
-        dashboard_content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
-        dashboard_content.pack(fill='both', expand=True, padx=20, pady=20)
-        self._build_homepage_content(dashboard_content)
-
-    def _build_homepage_content(self, dashboard_content):
+    def build_homepage(self):
         is_faculty = (self.current_user.get("role") == "Faculty")
         if is_faculty:
             self.build_faculty_homepage()
@@ -389,6 +372,10 @@ class Dashboard:
             padx=20,
             pady=20
         )
+
+        self._build_homepage_content(dashboard_content)
+
+    def _build_homepage_content(self, dashboard_content):
 
         # ====================================================
         # WELCOME
@@ -462,7 +449,6 @@ class Dashboard:
         )
 
         # Generate
-
         self.create_card(
             cards_frame,
             "Generate Timetable",
@@ -473,7 +459,6 @@ class Dashboard:
         )
 
         # Faculty
-
         self.create_card(
             cards_frame,
             "Manage Faculty",
@@ -484,7 +469,6 @@ class Dashboard:
         )
 
         # Subjects
-
         self.create_card(
             cards_frame,
             "Manage Subjects",
@@ -529,10 +513,7 @@ class Dashboard:
             padx=10
         )
 
-        # Allow cards to expand evenly
-
         for column in range(4):
-
             stats_frame.grid_columnconfigure(
                 column,
                 weight=1
@@ -786,8 +767,6 @@ class Dashboard:
             False
         )
 
-        # Store value label
-
         value_label = ctk.CTkLabel(
             card,
             text=str(value),
@@ -814,8 +793,6 @@ class Dashboard:
         )
 
         title_label.pack()
-
-        # Store reference
 
         self.stat_value_labels[
             title.lower()
@@ -844,10 +821,13 @@ class Dashboard:
 
         if "faculty" in self.stat_value_labels:
             self.stat_value_labels["faculty"].configure(text=str(faculty_count))
+
         if "subjects" in self.stat_value_labels:
             self.stat_value_labels["subjects"].configure(text=str(subject_count))
+
         if "classrooms" in self.stat_value_labels:
             self.stat_value_labels["classrooms"].configure(text=str(classroom_count))
+
         if "timetables" in self.stat_value_labels:
             self.stat_value_labels["timetables"].configure(text=str(timetable_count))
 
@@ -899,85 +879,6 @@ class Dashboard:
             text_color=("#71717A", "#A1A1AA")
         )
         status.pack(anchor="w", padx=20, pady=(0, 18))
-
-    # ========================================================
-    # DASHBOARD FOCUS
-    # ========================================================
-
-    def on_dashboard_focus(
-        self,
-        event=None
-    ):
-
-        try:
-
-            self.refresh_dashboard()
-
-        except Exception:
-
-            pass
-
-    # ========================================================
-    # STATUS WINDOW
-    # ========================================================
-
-    def _show_status(
-        self,
-        title,
-        message
-    ):
-
-        status_window = ctk.CTkToplevel(
-            self.window
-        )
-
-        status_window.title(
-            title
-        )
-
-        status_window.geometry(
-            "420x180"
-        )
-
-        status_window.resizable(
-            False,
-            False
-        )
-
-        status_window.transient(
-            self.window
-        )
-
-        ctk.CTkLabel(
-            status_window,
-            text=title,
-            font=(
-                "Arial",
-                18,
-                "bold"
-            )
-        ).pack(
-            pady=(30, 10)
-        )
-
-        ctk.CTkLabel(
-            status_window,
-            text=message,
-            font=(
-                "Arial",
-                13
-            ),
-            wraplength=360
-        ).pack(
-            pady=(0, 20)
-        )
-
-        ctk.CTkButton(
-            status_window,
-            text="OK",
-            width=90,
-            command=status_window.destroy
-        ).pack()
 
     # ========================================================
     # HOME
@@ -1036,7 +937,7 @@ class Dashboard:
         self.show_page("settings")
 
     # ========================================================
-    # IN-PLACE PAGE NAVIGATION
+    # IN-PLACE PAGE NAVIGATION (CLEARS OLD PAGE 100% CLEANLY)
     # ========================================================
 
     def show_page(self, page, add_history=True):
@@ -1053,6 +954,10 @@ class Dashboard:
             self.history.append(page)
             self.history_index += 1
 
+        # Completely clean all widgets from page container so only 1 page is ever displayed
+        for child in self.page_container.winfo_children():
+            child.destroy()
+
         titles = {
             "home": "Homepage",
             "faculty": "Faculty Management",
@@ -1066,64 +971,29 @@ class Dashboard:
         }
         self.page_title.configure(text=titles.get(page, "Homepage"))
 
-        # Hide all cached page containers instantly (0ms overhead)
-        for p_name, p_frame in self.cached_pages.items():
-            p_frame.pack_forget()
-
-        # If page not yet created, create container frame and instantiate page once
-        if page not in self.cached_pages:
-            page_frame = ctk.CTkFrame(
-                self.page_container,
-                fg_color="transparent",
-                corner_radius=0
-            )
-            self.cached_pages[page] = page_frame
-
-            if page == "home":
-                self.build_homepage_in_container(page_frame)
-            elif page == "faculty":
-                inst = FacultyWindow(self.window, container=page_frame, navigate=self.show_page)
-                self.cached_page_instances["faculty"] = inst
-            elif page == "subjects":
-                inst = SubjectsWindow(self.window, container=page_frame)
-                self.cached_page_instances["subjects"] = inst
-            elif page == "classrooms":
-                inst = ClassroomsWindow(self.window, container=page_frame)
-                self.cached_page_instances["classrooms"] = inst
-            elif page == "classes":
-                inst = ClassesWindow(self.window, container=page_frame)
-                self.cached_page_instances["classes"] = inst
-            elif page == "assignments":
-                inst = AssignmentsWindow(self.window, container=page_frame)
-                self.cached_page_instances["assignments"] = inst
-            elif page == "generate":
-                inst = GenerateTimetableWindow(self.window, container=page_frame, navigate=self.show_page)
-                self.cached_page_instances["generate"] = inst
-            elif page == "view_timetable":
-                is_faculty = (self.current_user.get("role") == "Faculty")
-                inst = ViewTimetableWindow(
-                    self.window,
-                    container=page_frame,
-                    faculty_user=self.current_user if is_faculty else None
-                )
-                self.cached_page_instances["view_timetable"] = inst
-            else:
-                self.build_settings_page_in_container(page_frame)
-
-        # Instantly show the cached page
-        self.cached_pages[page].pack(fill="both", expand=True)
-
-        # If home page, update fast aggregate statistics
         if page == "home":
-            self.refresh_dashboard()
-        elif page in ["view_timetable", "generate"]:
-            # Quick refresh of dropdown options in case data changed
-            inst = self.cached_page_instances.get(page)
-            if inst:
-                if hasattr(inst, "load_classes_dropdown"):
-                    inst.load_classes_dropdown()
-                if hasattr(inst, "load_dropdowns"):
-                    inst.load_dropdowns()
+            self.build_homepage()
+        elif page == "faculty":
+            FacultyWindow(self.window, container=self.page_container, navigate=self.show_page)
+        elif page == "subjects":
+            SubjectsWindow(self.window, container=self.page_container)
+        elif page == "classrooms":
+            ClassroomsWindow(self.window, container=self.page_container)
+        elif page == "classes":
+            ClassesWindow(self.window, container=self.page_container)
+        elif page == "assignments":
+            AssignmentsWindow(self.window, container=self.page_container)
+        elif page == "generate":
+            GenerateTimetableWindow(self.window, container=self.page_container, navigate=self.show_page)
+        elif page == "view_timetable":
+            is_faculty = (self.current_user.get("role") == "Faculty")
+            ViewTimetableWindow(
+                self.window,
+                container=self.page_container,
+                faculty_user=self.current_user if is_faculty else None
+            )
+        else:
+            self.build_settings_page()
 
         self.update_navigation_buttons()
 
@@ -1146,8 +1016,7 @@ class Dashboard:
                    else "disabled")
         )
 
-    def build_faculty_homepage(self, target_container):
-        content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
+    def build_faculty_homepage(self):
         content = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
         content.pack(fill="both", expand=True, padx=24, pady=24)
 
@@ -1235,9 +1104,8 @@ class Dashboard:
             justify="left"
         ).pack(anchor="w", pady=(8, 0))
 
-    def build_settings_page_in_container(self, target_container):
-        settings_content = ctk.CTkScrollableFrame(target_container, fg_color=('#F4F4F5', '#121212'))
-        page = ctk.CTkScrollableFrame(self.page_container, fg_color="transparent")
+    def build_settings_page(self):
+        page = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
         page.pack(fill="both", expand=True, padx=30, pady=25)
 
         # Page Header
@@ -1247,7 +1115,8 @@ class Dashboard:
         ctk.CTkLabel(
             header_frame,
             text="System & Application Settings",
-            font=("Arial", 24, "bold")
+            font=("Arial", 24, "bold"),
+            text_color=("#18181B", "#F4F4F5")
         ).pack(anchor="w")
 
         ctk.CTkLabel(
@@ -1260,7 +1129,7 @@ class Dashboard:
         # -------------------------------------------------------------
         # 1. THEME / APPEARANCE SETTINGS CARD
         # -------------------------------------------------------------
-        theme_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        theme_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
         theme_card.pack(fill="x", pady=(0, 20))
 
         theme_inner = ctk.CTkFrame(theme_card, fg_color="transparent")
@@ -1269,7 +1138,8 @@ class Dashboard:
         ctk.CTkLabel(
             theme_inner,
             text="🎨  Theme & Appearance (Dark / Light Mode)",
-            font=("Arial", 16, "bold")
+            font=("Arial", 16, "bold"),
+            text_color=("#18181B", "#F4F4F5")
         ).pack(anchor="w")
 
         ctk.CTkLabel(
@@ -1293,7 +1163,7 @@ class Dashboard:
         # -------------------------------------------------------------
         # 2. TEXT SIZE & INTERFACE SCALING CARD
         # -------------------------------------------------------------
-        scale_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        scale_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
         scale_card.pack(fill="x", pady=(0, 20))
 
         scale_inner = ctk.CTkFrame(scale_card, fg_color="transparent")
@@ -1302,7 +1172,8 @@ class Dashboard:
         ctk.CTkLabel(
             scale_inner,
             text="🔍  Text Size & Interface Scaling",
-            font=("Arial", 16, "bold")
+            font=("Arial", 16, "bold"),
+            text_color=("#18181B", "#F4F4F5")
         ).pack(anchor="w")
 
         ctk.CTkLabel(
@@ -1326,7 +1197,7 @@ class Dashboard:
         # -------------------------------------------------------------
         # 3. ACCOUNT & SESSION CARD
         # -------------------------------------------------------------
-        account_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        account_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
         account_card.pack(fill="x", pady=(0, 20))
 
         account_inner = ctk.CTkFrame(account_card, fg_color="transparent")
@@ -1335,7 +1206,8 @@ class Dashboard:
         ctk.CTkLabel(
             account_inner,
             text="👤  User Account & Security",
-            font=("Arial", 16, "bold")
+            font=("Arial", 16, "bold"),
+            text_color=("#18181B", "#F4F4F5")
         ).pack(anchor="w")
 
         user_name = self.current_user.get("username", "Administrator")
@@ -1345,7 +1217,7 @@ class Dashboard:
             account_inner,
             text=info_text,
             font=("Arial", 13),
-            text_color=("#4B5563", "#9CA3AF"),
+            text_color=("#71717A", "#A1A1AA"),
             justify="left"
         ).pack(anchor="w", pady=(8, 16))
 
@@ -1385,10 +1257,6 @@ class Dashboard:
             parent=self.window
         )
         if confirm:
-            try:
-                self.window.unbind("<FocusIn>")
-            except Exception:
-                pass
             from ui.login import LoginWindow
             from main import open_dashboard
             LoginWindow(
