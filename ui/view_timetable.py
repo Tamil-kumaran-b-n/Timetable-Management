@@ -338,39 +338,18 @@ class ViewTimetableWindow:
     def build_generated_class_list(self):
 
         self.generated_class_records = []
+        try:
+            from database.database import get_connection
+            conn = get_connection()
+            cursor = conn.execute("SELECT DISTINCT class_id FROM timetable")
+            active_ids = {r[0] for r in cursor.fetchall()}
+            conn.close()
+        except Exception:
+            active_ids = set()
 
         for record in self.class_records:
-
-            if not record:
-                continue
-
-            class_id = record[0]
-
-            try:
-
-                timetable_data = (
-                    get_timetable_by_class(
-                        class_id
-                    )
-                    or []
-                )
-
-            except Exception:
-
-                timetable_data = []
-
-            # ----------------------------------------------
-            # IMPORTANT
-            #
-            # Only classes that actually have timetable
-            # entries are added.
-            # ----------------------------------------------
-
-            if timetable_data:
-
-                self.generated_class_records.append(
-                    record
-                )
+            if record and record[0] in active_ids:
+                self.generated_class_records.append(record)
 
     # ======================================================
     # FIND GENERATED FACULTY
@@ -379,32 +358,18 @@ class ViewTimetableWindow:
     def build_generated_faculty_list(self):
 
         self.generated_faculty_records = []
+        try:
+            from database.database import get_connection
+            conn = get_connection()
+            cursor = conn.execute("SELECT DISTINCT faculty_id FROM timetable")
+            active_ids = {r[0] for r in cursor.fetchall()}
+            conn.close()
+        except Exception:
+            active_ids = set()
 
         for record in self.faculty_records:
-
-            if not record:
-                continue
-
-            faculty_id = record[0]
-
-            try:
-
-                timetable_data = (
-                    get_timetable_by_faculty(
-                        faculty_id
-                    )
-                    or []
-                )
-
-            except Exception:
-
-                timetable_data = []
-
-            if timetable_data:
-
-                self.generated_faculty_records.append(
-                    record
-                )
+            if record and record[0] in active_ids:
+                self.generated_faculty_records.append(record)
 
     # ======================================================
     # CHECK GENERATED TIMETABLE

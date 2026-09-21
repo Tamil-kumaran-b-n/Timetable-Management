@@ -79,10 +79,7 @@ class Dashboard:
         # AUTOMATIC REFRESH
         # ====================================================
 
-        self.window.bind(
-            "<FocusIn>",
-            self.on_dashboard_focus
-        )
+        # FocusIn binding removed to eliminate UI freezing and redundant DB polling
 
     # ========================================================
     # CREATE DASHBOARD

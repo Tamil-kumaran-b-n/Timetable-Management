@@ -21,11 +21,13 @@ DB_NAME = os.path.join(
 
 def get_connection():
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=15)
 
-    conn.execute(
-        "PRAGMA foreign_keys = ON"
-    )
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA cache_size = 10000")
+    conn.execute("PRAGMA temp_store = MEMORY")
 
     return conn
 
@@ -245,6 +247,16 @@ def create_tables():
                 "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
                 ("admin", hash_password("admin123"), "Administrator")
             )
+
+        
+        # Performance Indexes
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_timetable_class ON timetable(class_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_timetable_faculty ON timetable(faculty_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_timetable_day_period ON timetable(day_order, period)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_faculty_dept ON faculty(department)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_subjects_dept_sem ON subjects(department, semester)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_classes_dept_sem ON classes(department, semester)")
 
         conn.commit()
 
