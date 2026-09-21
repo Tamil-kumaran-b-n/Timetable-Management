@@ -13,28 +13,21 @@ from database.database import (
 
 class SubjectsWindow:
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, container=None):
 
         self.parent = parent
+        self.embedded = container is not None
 
-        self.window = (
-            ctk.CTkToplevel(parent)
-            if parent
-            else ctk.CTk()
+        self.window = container if self.embedded else (
+            ctk.CTkToplevel(parent) if parent else ctk.CTk()
         )
 
-        self.window.title(
-            "Subject Management - Smart Academic Timetable Management System"
-        )
-
-        self.window.geometry(
-            "1200x720"
-        )
-
-        self.window.minsize(
-            1050,
-            650
-        )
+        if not self.embedded:
+            self.window.title(
+                "Subject Management - Smart Academic Timetable Management System"
+            )
+            self.window.geometry("1200x720")
+            self.window.minsize(1050, 650)
 
         self.selected_id = None
 
@@ -56,7 +49,7 @@ class SubjectsWindow:
 
     def create_ui(self):
 
-        main = ctk.CTkFrame(
+        main = ctk.CTkScrollableFrame(
             self.window,
             fg_color="#F5F7FA",
             corner_radius=0
@@ -473,8 +466,7 @@ class SubjectsWindow:
         )
 
         list_card.pack(
-            fill="both",
-            expand=True,
+            fill="x",
             padx=25,
             pady=(0, 25)
         )
@@ -512,7 +504,7 @@ class SubjectsWindow:
         # SCROLLABLE TABLE
         # =================================================
 
-        self.list_frame = ctk.CTkScrollableFrame(
+        self.list_frame = ctk.CTkFrame(
             list_card,
             fg_color="#FFFFFF",
             corner_radius=8
@@ -1415,5 +1407,4 @@ if __name__ == "__main__":
 
     app = SubjectsWindow()
 
-    app.run() 
-    
+    app.run()

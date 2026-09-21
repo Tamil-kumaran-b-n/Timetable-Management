@@ -1,5 +1,4 @@
 import customtkinter as ctk
-from datetime import datetime
 
 from ui.faculty import FacultyWindow
 from ui.subjects import SubjectsWindow
@@ -7,6 +6,17 @@ from ui.classrooms import ClassroomsWindow
 from ui.classes import ClassesWindow
 from ui.generate import GenerateTimetableWindow
 from ui.view_timetable import ViewTimetableWindow
+from ui.assignments import AssignmentsWindow
+
+from database.database import (
+    get_all_faculty,
+    get_all_subjects,
+    get_all_classrooms
+)
+
+from database.generator import (
+    get_all_timetable
+)
 
 
 class Dashboard:
@@ -19,38 +29,61 @@ class Dashboard:
             "Homepage - Smart Academic Timetable Management System"
         )
 
-        self.window.geometry("1200x700")
-        self.window.minsize(1000, 600)
+        self.window.geometry(
+            "1200x700"
+        )
 
-        # =========================
-        # CHILD WINDOWS
-        # =========================
+        self.window.minsize(
+            1000,
+            600
+        )
 
-        self.faculty_window = None
-        self.subjects_window = None
-        self.classrooms_window = None
-        self.classes_window = None
-        self.generate_window = None
-        self.view_timetable_window = None
+        # Browser-style history for pages rendered in the dashboard.
+        self.history = ["home"]
+        self.history_index = 0
 
-        # =========================
+        # ====================================================
+        # STATISTIC LABELS
+        # ====================================================
+
+        self.stat_value_labels = {}
+
+        # ====================================================
         # LIGHT THEME
-        # =========================
+        # ====================================================
 
-        ctk.set_appearance_mode("Light")
-        ctk.set_default_color_theme("blue")
+        ctk.set_appearance_mode(
+            "Light"
+        )
+
+        ctk.set_default_color_theme(
+            "blue"
+        )
+
+        # ====================================================
+        # CREATE DASHBOARD
+        # ====================================================
 
         self.create_dashboard()
 
-    # =====================================================
-    # CREATE HOMEPAGE
-    # =====================================================
+        # ====================================================
+        # AUTOMATIC REFRESH
+        # ====================================================
+
+        self.window.bind(
+            "<FocusIn>",
+            self.on_dashboard_focus
+        )
+
+    # ========================================================
+    # CREATE DASHBOARD
+    # ========================================================
 
     def create_dashboard(self):
 
-        # =========================
+        # ====================================================
         # MAIN CONTAINER
-        # =========================
+        # ====================================================
 
         main_frame = ctk.CTkFrame(
             self.window,
@@ -63,9 +96,9 @@ class Dashboard:
             expand=True
         )
 
-        # =========================
+        # ====================================================
         # SIDEBAR
-        # =========================
+        # ====================================================
 
         sidebar = ctk.CTkFrame(
             main_frame,
@@ -79,16 +112,22 @@ class Dashboard:
             fill="y"
         )
 
-        sidebar.pack_propagate(False)
+        sidebar.pack_propagate(
+            False
+        )
 
-        # =========================
+        # ====================================================
         # APPLICATION TITLE
-        # =========================
+        # ====================================================
 
         app_title = ctk.CTkLabel(
             sidebar,
             text="SMART\nTIMETABLE",
-            font=("Arial", 22, "bold"),
+            font=(
+                "Arial",
+                22,
+                "bold"
+            ),
             text_color="#1F2937"
         )
 
@@ -96,14 +135,18 @@ class Dashboard:
             pady=(35, 40)
         )
 
-        # =========================
+        # ====================================================
         # MAIN MENU
-        # =========================
+        # ====================================================
 
         nav_label = ctk.CTkLabel(
             sidebar,
             text="MAIN MENU",
-            font=("Arial", 11, "bold"),
+            font=(
+                "Arial",
+                11,
+                "bold"
+            ),
             text_color="#9CA3AF"
         )
 
@@ -113,9 +156,9 @@ class Dashboard:
             pady=(0, 12)
         )
 
-        # =========================
-        # NAVIGATION BUTTONS
-        # =========================
+        # ====================================================
+        # NAVIGATION
+        # ====================================================
 
         self.create_nav_button(
             sidebar,
@@ -159,9 +202,9 @@ class Dashboard:
             self.view_timetable_clicked
         )
 
-        # =========================
+        # ====================================================
         # SETTINGS
-        # =========================
+        # ====================================================
 
         settings_button = ctk.CTkButton(
             sidebar,
@@ -181,9 +224,9 @@ class Dashboard:
             pady=(5, 20)
         )
 
-        # =========================
+        # ====================================================
         # CONTENT AREA
-        # =========================
+        # ====================================================
 
         content = ctk.CTkFrame(
             main_frame,
@@ -197,9 +240,9 @@ class Dashboard:
             expand=True
         )
 
-        # =========================
+        # ====================================================
         # TOP BAR
-        # =========================
+        # ====================================================
 
         top_bar = ctk.CTkFrame(
             content,
@@ -212,32 +255,54 @@ class Dashboard:
             fill="x"
         )
 
-        top_bar.pack_propagate(False)
+        top_bar.pack_propagate(
+            False
+        )
 
-        # =========================
-        # PAGE TITLE
-        # =========================
+        self.back_button = ctk.CTkButton(
+            top_bar,
+            text="←",
+            width=36,
+            height=32,
+            state="disabled",
+            command=self.go_back
+        )
+        self.back_button.pack(side="left", padx=(20, 6))
 
-        page_title = ctk.CTkLabel(
+        self.forward_button = ctk.CTkButton(
+            top_bar,
+            text="→",
+            width=36,
+            height=32,
+            state="disabled",
+            command=self.go_forward
+        )
+        self.forward_button.pack(side="left", padx=(0, 16))
+
+        self.page_title = ctk.CTkLabel(
             top_bar,
             text="Homepage",
-            font=("Arial", 24, "bold"),
+            font=(
+                "Arial",
+                24,
+                "bold"
+            ),
             text_color="#111827"
         )
 
-        page_title.pack(
+        self.page_title.pack(
             side="left",
             padx=30
         )
 
-        # =========================
-        # USER LABEL
-        # =========================
-
         user_label = ctk.CTkLabel(
             top_bar,
             text="Administrator",
-            font=("Arial", 14, "bold"),
+            font=(
+                "Arial",
+                14,
+                "bold"
+            ),
             text_color="#374151"
         )
 
@@ -246,102 +311,89 @@ class Dashboard:
             padx=30
         )
 
-        # =========================
-        # HOMEPAGE CONTENT
-        # =========================
+        # ====================================================
+        # DASHBOARD CONTENT
+        # ====================================================
 
-        homepage_content = ctk.CTkScrollableFrame(
+        self.page_container = ctk.CTkFrame(
             content,
+            fg_color="#F5F7FA",
+            corner_radius=0
+        )
+
+        self.page_container.pack(
+            fill="both",
+            expand=True
+        )
+
+        self.show_page("home", add_history=False)
+
+    def build_homepage(self):
+
+        dashboard_content = ctk.CTkScrollableFrame(
+            self.page_container,
             fg_color="#F5F7FA"
         )
 
-        homepage_content.pack(
+        dashboard_content.pack(
             fill="both",
             expand=True,
             padx=20,
             pady=20
         )
 
-        # =================================================
-        # GREETING FRAME
-        # =================================================
+        # ====================================================
+        # WELCOME
+        # ====================================================
 
-        greeting_frame = ctk.CTkFrame(
-            homepage_content,
-            fg_color="transparent"
+        welcome_title = ctk.CTkLabel(
+            dashboard_content,
+            text="Good Evening 👋",
+            font=(
+                "Arial",
+                26,
+                "bold"
+            ),
+            text_color="#111827"
         )
 
-        greeting_frame.pack(
+        welcome_title.pack(
             anchor="w",
             padx=10,
-            pady=(5, 0)
+            pady=(5, 5)
         )
-
-        # =========================
-        # DYNAMIC GREETING
-        # =========================
-
-        self.welcome_title = ctk.CTkLabel(
-            greeting_frame,
-            text="",
-            font=("Arial", 26, "bold"),
-            text_color="#111827"
-        )
-
-        self.welcome_title.pack(
-            side="left"
-        )
-
-        # =========================
-        # GREETING EMOJI
-        # =========================
-
-        self.greeting_emoji = ctk.CTkLabel(
-            greeting_frame,
-            text="",
-            font=("Segoe UI Emoji", 22),
-            text_color="#111827"
-        )
-
-        self.greeting_emoji.pack(
-            side="left",
-            padx=(10, 0)
-        )
-
-        # =========================
-        # START GREETING UPDATE
-        # =========================
-
-        self.update_greeting()
-
-        # =========================
-        # WELCOME TEXT
-        # =========================
 
         welcome_text = ctk.CTkLabel(
-            homepage_content,
+            dashboard_content,
             text=(
                 "Manage your academic timetable efficiently "
                 "from one place."
             ),
-            font=("Arial", 14),
+            font=(
+                "Arial",
+                14
+            ),
             text_color="#6B7280"
         )
 
         welcome_text.pack(
             anchor="w",
             padx=10,
-            pady=(5, 25)
+            pady=(0, 25)
         )
 
-        # =========================
+        # ====================================================
         # QUICK ACTIONS
-        # =========================
+        # ====================================================
 
         quick_title = ctk.CTkLabel(
-            homepage_content,
+            dashboard_content,
             text="Quick Actions",
-            font=("Arial", 19, "bold"),
+            font=(
+                "Arial",
+                19,
+                "bold"
+            ),
             text_color="#111827"
         )
 
@@ -352,7 +404,7 @@ class Dashboard:
         )
 
         cards_frame = ctk.CTkFrame(
-            homepage_content,
+            dashboard_content,
             fg_color="transparent"
         )
 
@@ -361,9 +413,7 @@ class Dashboard:
             padx=10
         )
 
-        # =========================
-        # GENERATE CARD
-        # =========================
+        # Generate
 
         self.create_card(
             cards_frame,
@@ -374,9 +424,7 @@ class Dashboard:
             0
         )
 
-        # =========================
-        # FACULTY CARD
-        # =========================
+        # Faculty
 
         self.create_card(
             cards_frame,
@@ -387,9 +435,7 @@ class Dashboard:
             1
         )
 
-        # =========================
-        # SUBJECTS CARD
-        # =========================
+        # Subjects
 
         self.create_card(
             cards_frame,
@@ -400,14 +446,18 @@ class Dashboard:
             2
         )
 
-        # =========================
+        # ====================================================
         # ACADEMIC OVERVIEW
-        # =========================
+        # ====================================================
 
         stats_title = ctk.CTkLabel(
-            homepage_content,
+            dashboard_content,
             text="Academic Overview",
-            font=("Arial", 19, "bold"),
+            font=(
+                "Arial",
+                19,
+                "bold"
+            ),
             text_color="#111827"
         )
 
@@ -417,8 +467,12 @@ class Dashboard:
             pady=(35, 15)
         )
 
+        # ====================================================
+        # STATISTICS FRAME
+        # ====================================================
+
         stats_frame = ctk.CTkFrame(
-            homepage_content,
+            dashboard_content,
             fg_color="transparent"
         )
 
@@ -427,42 +481,87 @@ class Dashboard:
             padx=10
         )
 
+        # Allow cards to expand evenly
+
+        for column in range(4):
+
+            stats_frame.grid_columnconfigure(
+                column,
+                weight=1
+            )
+
+        # ====================================================
+        # STAT CARDS
+        # ====================================================
+
         self.create_stat(
             stats_frame,
             "Faculty",
-            "0",
+            0,
             0
         )
 
         self.create_stat(
             stats_frame,
             "Subjects",
-            "0",
+            0,
             1
         )
 
         self.create_stat(
             stats_frame,
             "Classrooms",
-            "0",
+            0,
             2
         )
 
         self.create_stat(
             stats_frame,
             "Timetables",
-            "0",
+            0,
             3
         )
 
-        # =========================
+        # ====================================================
+        # REFRESH BUTTON
+        # ====================================================
+
+        refresh_frame = ctk.CTkFrame(
+            dashboard_content,
+            fg_color="transparent"
+        )
+
+        refresh_frame.pack(
+            fill="x",
+            padx=10,
+            pady=(12, 0)
+        )
+
+        refresh_button = ctk.CTkButton(
+            refresh_frame,
+            text="↻  Refresh Overview",
+            width=150,
+            height=34,
+            corner_radius=7,
+            command=self.refresh_dashboard
+        )
+
+        refresh_button.pack(
+            anchor="e"
+        )
+
+        # ====================================================
         # RECENT TIMETABLES
-        # =========================
+        # ====================================================
 
         recent_title = ctk.CTkLabel(
-            homepage_content,
+            dashboard_content,
             text="Recent Timetables",
-            font=("Arial", 19, "bold"),
+            font=(
+                "Arial",
+                19,
+                "bold"
+            ),
             text_color="#111827"
         )
 
@@ -472,103 +571,29 @@ class Dashboard:
             pady=(35, 15)
         )
 
-        recent_box = ctk.CTkFrame(
-            homepage_content,
+        self.recent_box = ctk.CTkFrame(
+            dashboard_content,
             fg_color="#FFFFFF",
             corner_radius=12,
             border_width=1,
             border_color="#E5E7EB"
         )
 
-        recent_box.pack(
+        self.recent_box.pack(
             fill="x",
             padx=10,
             pady=(0, 20)
         )
 
-        no_data = ctk.CTkLabel(
-            recent_box,
-            text="No timetables generated yet.",
-            font=("Arial", 14),
-            text_color="#9CA3AF"
-        )
+        # ====================================================
+        # FIRST LOAD
+        # ====================================================
 
-        no_data.pack(
-            pady=35
-        )
+        self.refresh_dashboard()
 
-    # =====================================================
-    # DYNAMIC TIME GREETING
-    # =====================================================
-
-    def update_greeting(self):
-
-        current_hour = datetime.now().hour
-
-        # =================================================
-        # 12:00 AM - 11:59 AM
-        # =================================================
-
-        if 0 <= current_hour < 12:
-
-            greeting = "Good Morning"
-            emoji = "🌅"
-
-        # =================================================
-        # 12:00 PM - 2:59 PM
-        # =================================================
-
-        elif 12 <= current_hour < 15:
-
-            greeting = "Good Afternoon"
-            emoji = "☀️"
-
-        # =================================================
-        # 3:00 PM - 8:59 PM
-        # =================================================
-
-        elif 15 <= current_hour < 21:
-
-            greeting = "Good Evening"
-            emoji = "🌆"
-
-        # =================================================
-        # 9:00 PM - 11:59 PM
-        # =================================================
-
-        else:
-
-            greeting = "Good Night"
-            emoji = "🌙"
-
-        # =========================
-        # UPDATE TEXT
-        # =========================
-
-        self.welcome_title.configure(
-            text=greeting
-        )
-
-        # =========================
-        # UPDATE EMOJI
-        # =========================
-
-        self.greeting_emoji.configure(
-            text=emoji
-        )
-
-        # =========================
-        # UPDATE EVERY 60 SECONDS
-        # =========================
-
-        self.window.after(
-            60000,
-            self.update_greeting
-        )
-
-    # =====================================================
+    # ========================================================
     # NAVIGATION BUTTON
-    # =====================================================
+    # ========================================================
 
     def create_nav_button(
         self,
@@ -585,7 +610,10 @@ class Dashboard:
             hover_color="#EAF2FF",
             text_color="#374151",
             anchor="w",
-            font=("Arial", 13),
+            font=(
+                "Arial",
+                13
+            ),
             command=command
         )
 
@@ -595,9 +623,9 @@ class Dashboard:
             pady=3
         )
 
-    # =====================================================
+    # ========================================================
     # QUICK ACTION CARD
-    # =====================================================
+    # ========================================================
 
     def create_card(
         self,
@@ -612,7 +640,7 @@ class Dashboard:
         card = ctk.CTkFrame(
             parent,
             width=280,
-            height=175,
+            height=145,
             fg_color="#FFFFFF",
             corner_radius=12,
             border_width=1,
@@ -626,12 +654,18 @@ class Dashboard:
             sticky="nsew"
         )
 
-        card.grid_propagate(False)
+        card.grid_propagate(
+            False
+        )
 
         title_label = ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 17, "bold"),
+            font=(
+                "Arial",
+                17,
+                "bold"
+            ),
             text_color="#111827"
         )
 
@@ -644,7 +678,10 @@ class Dashboard:
         description_label = ctk.CTkLabel(
             card,
             text=description,
-            font=("Arial", 12),
+            font=(
+                "Arial",
+                12
+            ),
             text_color="#6B7280",
             wraplength=235,
             justify="left"
@@ -666,12 +703,12 @@ class Dashboard:
         action_button.pack(
             anchor="w",
             padx=20,
-            pady=15
+            pady=12
         )
 
-    # =====================================================
+    # ========================================================
     # STAT CARD
-    # =====================================================
+    # ========================================================
 
     def create_stat(
         self,
@@ -697,10 +734,20 @@ class Dashboard:
             sticky="nsew"
         )
 
+        card.grid_propagate(
+            False
+        )
+
+        # Store value label
+
         value_label = ctk.CTkLabel(
             card,
-            text=value,
-            font=("Arial", 25, "bold"),
+            text=str(value),
+            font=(
+                "Arial",
+                25,
+                "bold"
+            ),
             text_color="#2563EB"
         )
 
@@ -711,15 +758,257 @@ class Dashboard:
         title_label = ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 12),
+            font=(
+                "Arial",
+                12
+            ),
             text_color="#6B7280"
         )
 
         title_label.pack()
 
-    # =====================================================
+        # Store reference
+
+        self.stat_value_labels[
+            title.lower()
+        ] = value_label
+
+    # ========================================================
+    # REFRESH DASHBOARD STATISTICS
+    # ========================================================
+
+    def refresh_dashboard(self):
+
+        # ====================================================
+        # FACULTY COUNT
+        # ====================================================
+
+        try:
+
+            faculty_records = get_all_faculty()
+
+            faculty_count = len(
+                faculty_records
+            )
+
+        except Exception:
+
+            faculty_count = 0
+
+        # ====================================================
+        # SUBJECT COUNT
+        # ====================================================
+
+        try:
+
+            subject_records = get_all_subjects()
+
+            subject_count = len(
+                subject_records
+            )
+
+        except Exception:
+
+            subject_count = 0
+
+        # ====================================================
+        # CLASSROOM COUNT
+        # ====================================================
+
+        try:
+
+            classroom_records = get_all_classrooms()
+
+            classroom_count = len(
+                classroom_records
+            )
+
+        except Exception:
+
+            classroom_count = 0
+
+        # ====================================================
+        # TIMETABLE COUNT
+        # ====================================================
+
+        try:
+
+            timetable_records = get_all_timetable()
+
+            timetable_count = len(
+                timetable_records
+            )
+
+        except Exception:
+
+            timetable_count = 0
+
+        # ====================================================
+        # UPDATE LABELS
+        # ====================================================
+
+        if "faculty" in self.stat_value_labels:
+
+            self.stat_value_labels[
+                "faculty"
+            ].configure(
+                text=str(
+                    faculty_count
+                )
+            )
+
+        if "subjects" in self.stat_value_labels:
+
+            self.stat_value_labels[
+                "subjects"
+            ].configure(
+                text=str(
+                    subject_count
+                )
+            )
+
+        if "classrooms" in self.stat_value_labels:
+
+            self.stat_value_labels[
+                "classrooms"
+            ].configure(
+                text=str(
+                    classroom_count
+                )
+            )
+
+        if "timetables" in self.stat_value_labels:
+
+            self.stat_value_labels[
+                "timetables"
+            ].configure(
+                text=str(
+                    timetable_count
+                )
+            )
+
+        # ====================================================
+        # UPDATE RECENT TIMETABLE SECTION
+        # ====================================================
+
+        self.refresh_recent_timetables()
+
+    # ========================================================
+    # RECENT TIMETABLES
+    # ========================================================
+
+    def refresh_recent_timetables(self):
+
+        if not hasattr(
+            self,
+            "recent_box"
+        ):
+
+            return
+
+        # Clear old content
+
+        for widget in (
+            self.recent_box
+            .winfo_children()
+        ):
+
+            widget.destroy()
+
+        try:
+
+            timetable_records = get_all_timetable()
+
+        except Exception:
+
+            timetable_records = []
+
+        # ====================================================
+        # NO TIMETABLE
+        # ====================================================
+
+        if not timetable_records:
+
+            no_data = ctk.CTkLabel(
+                self.recent_box,
+                text="No timetables generated yet.",
+                font=(
+                    "Arial",
+                    14
+                ),
+                text_color="#9CA3AF"
+            )
+
+            no_data.pack(
+                pady=35
+            )
+
+            return
+
+        # ====================================================
+        # TIMETABLE EXISTS
+        # ====================================================
+
+        info = ctk.CTkLabel(
+            self.recent_box,
+            text=(
+                f"{len(timetable_records)} "
+                f"timetable entries are currently generated."
+            ),
+            font=(
+                "Arial",
+                14
+            ),
+            text_color="#374151"
+        )
+
+        info.pack(
+            anchor="w",
+            padx=20,
+            pady=(18, 5)
+        )
+
+        # Show a small status line
+
+        status = ctk.CTkLabel(
+            self.recent_box,
+            text=(
+                "The generated timetable is available "
+                "from the View Timetable section."
+            ),
+            font=(
+                "Arial",
+                12
+            ),
+            text_color="#6B7280"
+        )
+
+        status.pack(
+            anchor="w",
+            padx=20,
+            pady=(0, 18)
+        )
+
+    # ========================================================
+    # DASHBOARD FOCUS
+    # ========================================================
+
+    def on_dashboard_focus(
+        self,
+        event=None
+    ):
+
+        try:
+
+            self.refresh_dashboard()
+
+        except Exception:
+
+            pass
+
+    # ========================================================
     # STATUS WINDOW
-    # =====================================================
+    # ========================================================
 
     def _show_status(
         self,
@@ -731,15 +1020,31 @@ class Dashboard:
             self.window
         )
 
-        status_window.title(title)
-        status_window.geometry("420x180")
-        status_window.resizable(False, False)
-        status_window.transient(self.window)
+        status_window.title(
+            title
+        )
+
+        status_window.geometry(
+            "420x180"
+        )
+
+        status_window.resizable(
+            False,
+            False
+        )
+
+        status_window.transient(
+            self.window
+        )
 
         ctk.CTkLabel(
             status_window,
             text=title,
-            font=("Arial", 18, "bold")
+            font=(
+                "Arial",
+                18,
+                "bold"
+            )
         ).pack(
             pady=(30, 10)
         )
@@ -747,7 +1052,10 @@ class Dashboard:
         ctk.CTkLabel(
             status_window,
             text=message,
-            font=("Arial", 13),
+            font=(
+                "Arial",
+                13
+            ),
             wraplength=360
         ).pack(
             pady=(0, 20)
@@ -760,166 +1068,160 @@ class Dashboard:
             command=status_window.destroy
         ).pack()
 
-    # =====================================================
+    # ========================================================
     # HOME
-    # =====================================================
+    # ========================================================
 
     def home_clicked(self):
+        self.show_page("home")
 
-        self._show_status(
-            "Homepage",
-            "You are already viewing the homepage."
-        )
-
-    # =====================================================
+    # ========================================================
     # FACULTY
-    # =====================================================
+    # ========================================================
 
     def faculty_clicked(self):
+        self.show_page("faculty")
 
-        if (
-            self.faculty_window is None
-            or not self.faculty_window.window.winfo_exists()
-        ):
-
-            self.faculty_window = FacultyWindow(
-                self.window
-            )
-
-        else:
-
-            self.faculty_window.window.deiconify()
-            self.faculty_window.window.lift()
-            self.faculty_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # SUBJECTS
-    # =====================================================
+    # ========================================================
 
     def subjects_clicked(self):
+        self.show_page("subjects")
 
-        if (
-            self.subjects_window is None
-            or not self.subjects_window.window.winfo_exists()
-        ):
-
-            self.subjects_window = SubjectsWindow(
-                self.window
-            )
-
-        else:
-
-            self.subjects_window.window.deiconify()
-            self.subjects_window.window.lift()
-            self.subjects_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # CLASSROOMS
-    # =====================================================
+    # ========================================================
 
     def classrooms_clicked(self):
+        self.show_page("classrooms")
 
-        if (
-            self.classrooms_window is None
-            or not self.classrooms_window.window.winfo_exists()
-        ):
-
-            self.classrooms_window = ClassroomsWindow(
-                self.window
-            )
-
-        else:
-
-            self.classrooms_window.window.deiconify()
-            self.classrooms_window.window.lift()
-            self.classrooms_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # CLASSES & SEMESTERS
-    # =====================================================
+    # ========================================================
 
     def classes_clicked(self):
+        self.show_page("classes")
 
-        if (
-            self.classes_window is None
-            or not self.classes_window.window.winfo_exists()
-        ):
-
-            self.classes_window = ClassesWindow(
-                self.window
-            )
-
-        else:
-
-            self.classes_window.window.deiconify()
-            self.classes_window.window.lift()
-            self.classes_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # GENERATE TIMETABLE
-    # =====================================================
+    # ========================================================
 
     def generate_clicked(self):
+        self.show_page("generate")
 
-        if (
-            self.generate_window is None
-            or not self.generate_window.window.winfo_exists()
-        ):
-
-            self.generate_window = GenerateTimetableWindow(
-                self.window
-            )
-
-        else:
-
-            self.generate_window.window.deiconify()
-            self.generate_window.window.lift()
-            self.generate_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # VIEW TIMETABLE
-    # =====================================================
+    # ========================================================
 
     def view_timetable_clicked(self):
+        self.show_page("view_timetable")
 
-        if (
-            self.view_timetable_window is None
-            or not self.view_timetable_window.window.winfo_exists()
-        ):
-
-            self.view_timetable_window = ViewTimetableWindow(
-                self.window
-            )
-
-        else:
-
-            self.view_timetable_window.window.deiconify()
-            self.view_timetable_window.window.lift()
-            self.view_timetable_window.window.focus_force()
-
-    # =====================================================
+    # ========================================================
     # SETTINGS
-    # =====================================================
+    # ========================================================
 
     def settings_clicked(self):
+        self.show_page("settings")
 
-        self._show_status(
-            "Settings",
-            "Application settings will be available here."
+    # ========================================================
+    # IN-PLACE PAGE NAVIGATION
+    # ========================================================
+
+    def show_page(self, page, add_history=True):
+        if add_history:
+            if self.history[self.history_index] == page:
+                return
+            self.history = self.history[:self.history_index + 1]
+            self.history.append(page)
+            self.history_index += 1
+
+        for child in self.page_container.winfo_children():
+            child.destroy()
+
+        titles = {
+            "home": "Homepage",
+            "faculty": "Faculty Management",
+            "subjects": "Subject Management",
+            "classrooms": "Classroom Management",
+            "classes": "Classes & Semesters",
+            "assignments": "Faculty Workload Management",
+            "generate": "Generate Timetable",
+            "view_timetable": "View Timetable",
+            "settings": "Settings",
+        }
+        self.page_title.configure(text=titles[page])
+
+        if page == "home":
+            self.build_homepage()
+        elif page == "faculty":
+            FacultyWindow(self.window, container=self.page_container,
+                          navigate=self.show_page)
+        elif page == "subjects":
+            SubjectsWindow(self.window, container=self.page_container)
+        elif page == "classrooms":
+            ClassroomsWindow(self.window, container=self.page_container)
+        elif page == "classes":
+            ClassesWindow(self.window, container=self.page_container)
+        elif page == "assignments":
+            AssignmentsWindow(self.window, container=self.page_container)
+        elif page == "generate":
+            GenerateTimetableWindow(self.window, container=self.page_container,
+                                    navigate=self.show_page)
+        elif page == "view_timetable":
+            ViewTimetableWindow(self.window, container=self.page_container)
+        else:
+            self.build_settings_page()
+
+        self.update_navigation_buttons()
+
+    def go_back(self):
+        if self.history_index > 0:
+            self.history_index -= 1
+            self.show_page(self.history[self.history_index], add_history=False)
+
+    def go_forward(self):
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            self.show_page(self.history[self.history_index], add_history=False)
+
+    def update_navigation_buttons(self):
+        self.back_button.configure(
+            state="normal" if self.history_index > 0 else "disabled"
+        )
+        self.forward_button.configure(
+            state=("normal" if self.history_index < len(self.history) - 1
+                   else "disabled")
         )
 
-    # =====================================================
+    def build_settings_page(self):
+        page = ctk.CTkFrame(self.page_container, fg_color="#F5F7FA")
+        page.pack(fill="both", expand=True, padx=30, pady=30)
+        ctk.CTkLabel(
+            page,
+            text="Settings",
+            font=("Arial", 26, "bold"),
+            text_color="#111827"
+        ).pack(anchor="w", pady=(0, 8))
+        ctk.CTkLabel(
+            page,
+            text="Application settings will be available here.",
+            font=("Arial", 14),
+            text_color="#6B7280"
+        ).pack(anchor="w")
+
+    # ========================================================
     # RUN
-    # =====================================================
+    # ========================================================
 
     def run(self):
 
         self.window.mainloop()
 
 
-# =========================================================
+# ============================================================
 # STANDALONE TEST
-# =========================================================
+# ============================================================
 
 if __name__ == "__main__":
 

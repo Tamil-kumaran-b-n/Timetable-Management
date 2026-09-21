@@ -16,28 +16,18 @@ class ClassSubjectsWindow:
     def __init__(
         self,
         parent,
-        preselected_class_id=None
+        preselected_class_id=None,
+        container=None
     ):
 
-        self.window = ctk.CTkToplevel(parent)
+        self.embedded = container is not None
+        self.window = container if self.embedded else ctk.CTkToplevel(parent)
 
-        self.window.title(
-            "Class - Subject Assignment"
-        )
-
-        self.window.geometry(
-            "1150x680"
-        )
-
-        self.window.minsize(
-            1000,
-            600
-        )
-
-        self.window.protocol(
-            "WM_DELETE_WINDOW",
-            self.close_window
-        )
+        if not self.embedded:
+            self.window.title("Class - Subject Assignment")
+            self.window.geometry("1150x680")
+            self.window.minsize(1000, 600)
+            self.window.protocol("WM_DELETE_WINDOW", self.close_window)
 
         self.preselected_class_id = (
             preselected_class_id
@@ -51,7 +41,7 @@ class ClassSubjectsWindow:
         # MAIN FRAME
         # =================================================
 
-        self.main_frame = ctk.CTkFrame(
+        self.main_frame = ctk.CTkScrollableFrame(
             self.window,
             fg_color="#FFFFFF",
             corner_radius=0
@@ -303,7 +293,7 @@ class ClassSubjectsWindow:
         # TABLE
         # =================================================
 
-        self.table_frame = ctk.CTkScrollableFrame(
+        self.table_frame = ctk.CTkFrame(
             self.main_frame,
             fg_color="#F8FAFC",
             corner_radius=10
@@ -980,6 +970,9 @@ class ClassSubjectsWindow:
     # =====================================================
 
     def close_window(self):
+
+        if self.embedded:
+            return
 
         self.window.destroy()
 

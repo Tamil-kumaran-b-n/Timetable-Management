@@ -9,16 +9,18 @@ from database.generator import (
 
 
 class GenerateTimetableWindow:
-    def __init__(self, parent):
+    def __init__(self, parent, container=None, navigate=None):
         self.parent = parent
+        self.embedded = container is not None
+        self.navigate = navigate
 
-        self.window = ctk.CTkToplevel(parent)
-        self.window.title("Generate Timetable")
-        self.window.geometry("1050x700")
-        self.window.minsize(900, 600)
-
-        self.window.transient(parent)
-        self.window.grab_set()
+        self.window = container if self.embedded else ctk.CTkToplevel(parent)
+        if not self.embedded:
+            self.window.title("Generate Timetable")
+            self.window.geometry("1050x700")
+            self.window.minsize(900, 600)
+            self.window.transient(parent)
+            self.window.grab_set()
 
         self.build_ui()
         self.load_workload_summary()
@@ -30,7 +32,7 @@ class GenerateTimetableWindow:
     def build_ui(self):
 
         # Main container
-        self.main_frame = ctk.CTkFrame(
+        self.main_frame = ctk.CTkScrollableFrame(
             self.window,
             fg_color="transparent"
         )
@@ -483,11 +485,13 @@ class GenerateTimetableWindow:
 
             from ui.view_timetable import ViewTimetableWindow
 
-            self.window.grab_release()
+            if not self.embedded:
+                self.window.grab_release()
 
-            ViewTimetableWindow(
-                self.parent
-            )
+            if self.navigate:
+                self.navigate("view_timetable")
+            else:
+                ViewTimetableWindow(self.parent)
 
         except ImportError:
 

@@ -13,22 +13,22 @@ from database.database import (
 
 class FacultyWindow:
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, container=None, navigate=None):
 
         self.parent = parent
+        self.embedded = container is not None
+        self.navigate = navigate
 
-        self.window = (
-            ctk.CTkToplevel(parent)
-            if parent
-            else ctk.CTk()
+        self.window = container if self.embedded else (
+            ctk.CTkToplevel(parent) if parent else ctk.CTk()
         )
 
-        self.window.title(
-            "Faculty Management - Smart Academic Timetable Management System"
-        )
-
-        self.window.geometry("1200x720")
-        self.window.minsize(1050, 650)
+        if not self.embedded:
+            self.window.title(
+                "Faculty Management - Smart Academic Timetable Management System"
+            )
+            self.window.geometry("1200x720")
+            self.window.minsize(1050, 650)
 
         self.selected_id = None
 
@@ -44,7 +44,7 @@ class FacultyWindow:
 
     def create_ui(self):
 
-        main = ctk.CTkFrame(
+        main = ctk.CTkScrollableFrame(
             self.window,
             fg_color="#F5F7FA",
             corner_radius=0
@@ -414,8 +414,7 @@ class FacultyWindow:
         )
 
         list_card.pack(
-            fill="both",
-            expand=True,
+            fill="x",
             padx=25,
             pady=(0, 25)
         )
@@ -446,7 +445,7 @@ class FacultyWindow:
         # SCROLLABLE TABLE
         # =================================================
 
-        self.list_frame = ctk.CTkScrollableFrame(
+        self.list_frame = ctk.CTkFrame(
             list_card,
             fg_color="#FFFFFF",
             corner_radius=8
@@ -1021,6 +1020,10 @@ class FacultyWindow:
         try:
 
             from ui.assignments import AssignmentsWindow
+
+            if self.embedded and self.navigate:
+                self.navigate("assignments")
+                return
 
             workload_window = AssignmentsWindow(
                 self.window,

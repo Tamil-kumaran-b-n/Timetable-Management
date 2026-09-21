@@ -13,27 +13,16 @@ from database.database import (
 
 class ClassesWindow:
 
-    def __init__(self, parent):
+    def __init__(self, parent, container=None):
 
-        self.window = ctk.CTkToplevel(parent)
+        self.embedded = container is not None
+        self.window = container if self.embedded else ctk.CTkToplevel(parent)
 
-        self.window.title(
-            "Classes & Semesters"
-        )
-
-        self.window.geometry(
-            "1100x720"
-        )
-
-        self.window.minsize(
-            1000,
-            650
-        )
-
-        self.window.protocol(
-            "WM_DELETE_WINDOW",
-            self.close_window
-        )
+        if not self.embedded:
+            self.window.title("Classes & Semesters")
+            self.window.geometry("1100x720")
+            self.window.minsize(1000, 650)
+            self.window.protocol("WM_DELETE_WINDOW", self.close_window)
 
         self.selected_id = None
 
@@ -41,7 +30,7 @@ class ClassesWindow:
         # MAIN FRAME
         # =========================
 
-        self.main_frame = ctk.CTkFrame(
+        self.main_frame = ctk.CTkScrollableFrame(
             self.window,
             fg_color="white",
             corner_radius=0
@@ -387,7 +376,7 @@ class ClassesWindow:
         # TABLE FRAME
         # =================================================
 
-        self.table_frame = ctk.CTkScrollableFrame(
+        self.table_frame = ctk.CTkFrame(
             self.main_frame,
             fg_color="#F8FAFC",
             corner_radius=10
@@ -1278,6 +1267,9 @@ class ClassesWindow:
     # =====================================================
 
     def close_window(self):
+
+        if self.embedded:
+            return
 
         self.window.destroy()
 

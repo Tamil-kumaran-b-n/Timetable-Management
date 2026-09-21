@@ -1,3 +1,4 @@
+import re
 import customtkinter as ctk
 from tkinter import messagebox
 
@@ -20,10 +21,12 @@ class AssignmentsWindow:
     def __init__(
         self,
         parent=None,
-        preselected_faculty_id=None
+        preselected_faculty_id=None,
+        container=None
     ):
 
         self.parent = parent
+        self.embedded = container is not None
 
         self.preselected_faculty_id = (
             preselected_faculty_id
@@ -39,24 +42,14 @@ class AssignmentsWindow:
         self.class_map = {}
         self.subject_map = {}
 
-        self.window = (
-            ctk.CTkToplevel(parent)
-            if parent
-            else ctk.CTk()
+        self.window = container if self.embedded else (
+            ctk.CTkToplevel(parent) if parent else ctk.CTk()
         )
 
-        self.window.title(
-            "Faculty Workload Management"
-        )
-
-        self.window.geometry(
-            "1200x760"
-        )
-
-        self.window.minsize(
-            1050,
-            680
-        )
+        if not self.embedded:
+            self.window.title("Faculty Workload Management")
+            self.window.geometry("1200x760")
+            self.window.minsize(1050, 680)
 
         ctk.set_appearance_mode(
             "Light"
@@ -78,7 +71,7 @@ class AssignmentsWindow:
 
     def create_ui(self):
 
-        main = ctk.CTkFrame(
+        main = ctk.CTkScrollableFrame(
             self.window,
             fg_color="#F5F7FA",
             corner_radius=0
@@ -435,8 +428,7 @@ class AssignmentsWindow:
         )
 
         list_card.pack(
-            fill="both",
-            expand=True,
+            fill="x",
             padx=25,
             pady=(0, 25)
         )
@@ -474,7 +466,7 @@ class AssignmentsWindow:
         # TABLE
         # =================================================
 
-        self.list_frame = ctk.CTkScrollableFrame(
+        self.list_frame = ctk.CTkFrame(
             list_card,
             fg_color="#FFFFFF",
             corner_radius=8
@@ -605,8 +597,8 @@ class AssignmentsWindow:
             # ---------------------------------------------
             # IMPORTANT:
             # Department is NOT shown separately.
-            # Example:
             #
+            # Example:
             # 1st BCA | Semester 1 | 2024-2025
             # ---------------------------------------------
 
@@ -761,6 +753,7 @@ class AssignmentsWindow:
             subject_id = subject[0]
             subject_code = subject[1]
             subject_name = subject[2]
+
             subject_department = str(
                 subject[3]
             ).strip()
@@ -775,7 +768,8 @@ class AssignmentsWindow:
 
             department_match = (
                 subject_department.lower()
-                == class_department.lower()
+                ==
+                class_department.lower()
             )
 
             # ---------------------------------------------
@@ -784,7 +778,8 @@ class AssignmentsWindow:
 
             semester_match = (
                 subject_semester.lower()
-                == class_semester.lower()
+                ==
+                class_semester.lower()
             )
 
             # Backward compatibility:
@@ -1038,6 +1033,7 @@ class AssignmentsWindow:
         data = self.validate_form()
 
         if data is None:
+
             return
 
         (
@@ -1091,6 +1087,175 @@ class AssignmentsWindow:
 
         self.display_workloads(
             records
+        )
+
+    # =====================================================
+    # CLASS + SUBJECT SORT KEY
+    # =====================================================
+
+    def get_class_sort_key(self, record):
+        """
+        Sort workload assignments using:
+
+        1. Course
+        2. Year
+        3. Subject number
+        4. Faculty name
+
+        Example:
+
+            1st BCA
+                BCA01
+                BCA02
+                BCA03
+                BCA04
+                BCA05
+                BCA06
+
+            1st BCOM
+                BCOM01
+                BCOM02
+                BCOM03
+                BCOM04
+                BCOM06
+
+        Faculty name is NOT used as the primary ordering.
+        """
+
+        # -------------------------------------------------
+        # CLASS DETAILS
+        # -------------------------------------------------
+
+        class_name = str(
+            record[5]
+        ).strip()
+
+        department = str(
+            record[6]
+        ).strip()
+
+        normalized_class = re.sub(
+            r"[^A-Z0-9]+",
+            "",
+            class_name.upper()
+        )
+
+        normalized_department = re.sub(
+            r"[^A-Z0-9]+",
+            "",
+            department.upper()
+        )
+
+        # -------------------------------------------------
+        # COURSE ORDER
+        # -------------------------------------------------
+
+        course_order = {
+            "BCA": 1,
+            "BSC": 2,
+            "BCOM": 3
+        }
+
+        course_rank = 99
+
+        for course, rank in course_order.items():
+
+            if course in normalized_class:
+
+                course_rank = rank
+                break
+
+        # If course is not present in class name,
+        # check department.
+
+        if course_rank == 99:
+
+            for course, rank in course_order.items():
+
+                if course in normalized_department:
+
+                    course_rank = rank
+                    break
+
+        # -------------------------------------------------
+        # YEAR / CLASS NUMBER
+        # -------------------------------------------------
+
+        year_rank = 99
+
+        year_patterns = [
+            (1, r"\b(?:1ST|FIRST|1|I)\b"),
+            (2, r"\b(?:2ND|SECOND|2|II)\b"),
+            (3, r"\b(?:3RD|THIRD|3|III)\b"),
+            (4, r"\b(?:4TH|FOURTH|4|IV)\b"),
+            (5, r"\b(?:5TH|FIFTH|5|V)\b"),
+            (6, r"\b(?:6TH|SIXTH|6|VI)\b")
+        ]
+
+        class_upper = class_name.upper()
+
+        for year, pattern in year_patterns:
+
+            if re.search(
+                pattern,
+                class_upper
+            ):
+
+                year_rank = year
+                break
+
+        # -------------------------------------------------
+        # SUBJECT CODE
+        # -------------------------------------------------
+
+        subject_code = str(
+            record[10]
+        ).strip().upper()
+
+        # Extract numeric part from:
+        #
+        # BCA01
+        # BCA02
+        # BCOM01
+        # BCOM06
+        #
+        # Result:
+        # BCA01  -> 1
+        # BCA02  -> 2
+        # BCOM06 -> 6
+
+        number_match = re.search(
+            r"(\d+)",
+            subject_code
+        )
+
+        if number_match:
+
+            subject_number = int(
+                number_match.group(1)
+            )
+
+        else:
+
+            subject_number = 999
+
+        # -------------------------------------------------
+        # FACULTY
+        #
+        # Only used as final tie-breaker.
+        # -------------------------------------------------
+
+        faculty_name = str(
+            record[3]
+        ).strip().lower()
+
+        return (
+            course_rank,
+            year_rank,
+            subject_number,
+            subject_code,
+            faculty_name,
+            record[0]
         )
 
     # =====================================================
@@ -1173,6 +1338,18 @@ class AssignmentsWindow:
             )
 
             return
+
+        # =================================================
+        # SORT DATA BY CLASS
+        #
+        # Class is the primary ordering.
+        # Faculty name is NOT the primary ordering.
+        # =================================================
+
+        records = sorted(
+            records,
+            key=self.get_class_sort_key
+        )
 
         # =================================================
         # DATA ROWS
@@ -1461,6 +1638,7 @@ class AssignmentsWindow:
         data = self.validate_form()
 
         if data is None:
+
             return
 
         (
@@ -1527,6 +1705,7 @@ class AssignmentsWindow:
         )
 
         if not confirm:
+
             return
 
         success = delete_workload(
