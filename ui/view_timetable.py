@@ -21,10 +21,11 @@ from database.generator import (
 
 class ViewTimetableWindow:
 
-    def __init__(self, parent, container=None):
+    def __init__(self, parent, container=None, faculty_user=None):
 
         self.parent = parent
         self.embedded = container is not None
+        self.faculty_user = faculty_user
 
         self.window = container if self.embedded else ctk.CTkToplevel(parent)
 
@@ -132,10 +133,11 @@ class ViewTimetableWindow:
             corner_radius=12
         )
 
-        mode_frame.pack(
-            fill="x",
-            pady=(0, 12)
-        )
+        if not getattr(self, "faculty_user", None):
+            mode_frame.pack(
+                fill="x",
+                pady=(0, 12)
+            )
 
         ctk.CTkLabel(
             mode_frame,
@@ -449,7 +451,10 @@ class ViewTimetableWindow:
                 state="normal"
             )
 
-            self.show_class_view()
+            if getattr(self, "faculty_user", None):
+                self.show_faculty_view()
+            else:
+                self.show_class_view()
 
         except Exception as error:
 
@@ -684,30 +689,32 @@ class ViewTimetableWindow:
             )
 
             if faculty_code:
-
-                values.append(
-                    f"{faculty_name} "
-                    f"({faculty_code})"
-                )
-
+                values.append(f"{faculty_name} ({faculty_code})")
             else:
+                values.append(faculty_name)
 
-                values.append(
-                    faculty_name
-                )
+        if getattr(self, "faculty_user", None):
+            uname = self.faculty_user.get("username", "").strip().lower()
+            matched_val = None
+            for idx, record in enumerate(records):
+                f_code = record[1].lower() if len(record) > 1 and record[1] else ""
+                f_name = record[2].lower() if len(record) > 2 and record[2] else ""
+                if uname in [f_name, f_code, f_code.replace("fac-", "")]:
+                    matched_val = values[idx]
+                    break
 
-        self.selection_menu.configure(
-            values=values
-        )
-
-        if (
-            self.selection_menu.get()
-            not in values
-        ):
-
-            self.selection_menu.set(
-                values[0]
-            )
+            if matched_val:
+                self.selection_menu.configure(values=[matched_val], state="disabled")
+                self.selection_menu.set(matched_val)
+                self.selection_label.configure(text="Faculty Member:")
+            else:
+                self.selection_menu.configure(values=["No Schedule Generated"], state="disabled")
+                self.selection_menu.set("No Schedule Generated")
+                self.selection_label.configure(text="Faculty Member:")
+        else:
+            self.selection_menu.configure(values=values, state="normal")
+            if self.selection_menu.get() not in values:
+                self.selection_menu.set(values[0])
 
     # ======================================================
     # SELECTION CHANGED

@@ -35,8 +35,8 @@ class LoginWindow:
         self.window.title(
             "Login - Smart Academic Timetable Management System"
         )
-        self.window.geometry("1000x680")
-        self.window.minsize(900, 620)
+        self.window.geometry("1000x720")
+        self.window.minsize(900, 650)
 
         self.create_login_screen()
 
@@ -54,7 +54,7 @@ class LoginWindow:
             text="Smart Academic Timetable Management System",
             font=("Arial", 28, "bold")
         )
-        self.title_label.pack(pady=(45, 8))
+        self.title_label.pack(pady=(35, 6))
 
         # Subtitle
         self.subtitle_label = ctk.CTkLabel(
@@ -63,32 +63,32 @@ class LoginWindow:
             font=("Arial", 15),
             text_color="#6B7280"
         )
-        self.subtitle_label.pack(pady=(0, 20))
+        self.subtitle_label.pack(pady=(0, 16))
 
         # Center card container
         self.card = ctk.CTkFrame(
             self.container,
-            width=440,
+            width=460,
             corner_radius=16,
             border_width=1,
             border_color=("#E5E7EB", "#374151")
         )
-        self.card.pack(pady=10)
+        self.card.pack(pady=5)
 
-        # Mode segment (Sign In vs Create Account)
+        # Mode segment (Sign In vs Register Faculty)
         self.mode_segment = ctk.CTkSegmentedButton(
             self.card,
-            values=["Sign In", "Create Account"],
+            values=["Sign In", "Faculty Registration"],
             command=self.on_mode_change,
             font=("Arial", 13, "bold"),
             height=36
         )
         self.mode_segment.set("Sign In")
-        self.mode_segment.pack(fill="x", padx=35, pady=(24, 15))
+        self.mode_segment.pack(fill="x", padx=35, pady=(20, 15))
 
         # Dynamic form container inside the card
         self.form_frame = ctk.CTkFrame(self.card, fg_color="transparent")
-        self.form_frame.pack(fill="both", expand=True, padx=30, pady=(0, 25))
+        self.form_frame.pack(fill="both", expand=True, padx=30, pady=(0, 20))
 
         # Footer
         self.footer = ctk.CTkLabel(
@@ -97,7 +97,7 @@ class LoginWindow:
             font=("Arial", 11),
             text_color="#9CA3AF"
         )
-        self.footer.pack(side="bottom", pady=16)
+        self.footer.pack(side="bottom", pady=14)
 
         # Render initial form
         self.render_login_form()
@@ -116,10 +116,10 @@ class LoginWindow:
         # Login heading
         login_title = ctk.CTkLabel(
             self.form_frame,
-            text="Sign In to Your Account",
+            text="Sign In to Portal",
             font=("Arial", 20, "bold")
         )
-        login_title.pack(pady=(5, 18))
+        login_title.pack(pady=(5, 16))
 
         # Username
         username_label = ctk.CTkLabel(
@@ -133,7 +133,7 @@ class LoginWindow:
         self.username_entry = ctk.CTkEntry(
             self.form_frame,
             height=38,
-            placeholder_text="e.g. admin or username",
+            placeholder_text="e.g. admin or faculty_username",
             font=("Arial", 13)
         )
         self.username_entry.pack(fill="x", pady=(0, 14))
@@ -165,7 +165,7 @@ class LoginWindow:
             command=self.toggle_login_password,
             font=("Arial", 12)
         )
-        show_password_check.pack(anchor="w", pady=(0, 18))
+        show_password_check.pack(anchor="w", pady=(0, 16))
 
         # Login button
         self.submit_button = ctk.CTkButton(
@@ -180,12 +180,12 @@ class LoginWindow:
         # Switch link button
         switch_btn = ctk.CTkButton(
             self.form_frame,
-            text="Don't have an account? Create one",
+            text="New faculty member? Register here",
             fg_color="transparent",
             hover=False,
             text_color=("#2563EB", "#60A5FA"),
             font=("Arial", 12, "underline"),
-            command=lambda: [self.mode_segment.set("Create Account"), self.render_register_form()]
+            command=lambda: [self.mode_segment.set("Faculty Registration"), self.render_register_form()]
         )
         switch_btn.pack()
 
@@ -201,63 +201,110 @@ class LoginWindow:
         # Register heading
         reg_title = ctk.CTkLabel(
             self.form_frame,
-            text="Create New Account",
-            font=("Arial", 20, "bold")
+            text="Register Faculty Account",
+            font=("Arial", 19, "bold")
         )
-        reg_title.pack(pady=(0, 16))
+        reg_title.pack(pady=(0, 12))
 
         # Username / Account Name
         reg_user_label = ctk.CTkLabel(
             self.form_frame,
-            text="Account Name (Username)",
-            font=("Arial", 13, "bold"),
+            text="Username / Account ID",
+            font=("Arial", 12, "bold"),
             anchor="w"
         )
-        reg_user_label.pack(fill="x", pady=(0, 4))
+        reg_user_label.pack(fill="x", pady=(0, 2))
 
         self.reg_username_entry = ctk.CTkEntry(
             self.form_frame,
-            height=38,
-            placeholder_text="Enter new account name (min 3 chars)",
-            font=("Arial", 13)
+            height=34,
+            placeholder_text="e.g. john_doe (min 3 chars)",
+            font=("Arial", 12)
         )
-        self.reg_username_entry.pack(fill="x", pady=(0, 12))
+        self.reg_username_entry.pack(fill="x", pady=(0, 8))
+
+        # Full Name / Display Name
+        reg_name_label = ctk.CTkLabel(
+            self.form_frame,
+            text="Faculty Full Name",
+            font=("Arial", 12, "bold"),
+            anchor="w"
+        )
+        reg_name_label.pack(fill="x", pady=(0, 2))
+
+        self.reg_fullname_entry = ctk.CTkEntry(
+            self.form_frame,
+            height=34,
+            placeholder_text="e.g. Dr. John Doe",
+            font=("Arial", 12)
+        )
+        self.reg_fullname_entry.pack(fill="x", pady=(0, 8))
+
+        # Department
+        reg_dept_label = ctk.CTkLabel(
+            self.form_frame,
+            text="Department",
+            font=("Arial", 12, "bold"),
+            anchor="w"
+        )
+        reg_dept_label.pack(fill="x", pady=(0, 2))
+
+        self.reg_dept_combo = ctk.CTkComboBox(
+            self.form_frame,
+            values=[
+                "Computer Science",
+                "Information Technology",
+                "Mechanical Engineering",
+                "Civil Engineering",
+                "Electronics & Communication",
+                "Electrical Engineering",
+                "Mathematics",
+                "Physics",
+                "Chemistry",
+                "Humanities & Management",
+                "General"
+            ],
+            height=34,
+            font=("Arial", 12)
+        )
+        self.reg_dept_combo.set("Computer Science")
+        self.reg_dept_combo.pack(fill="x", pady=(0, 8))
 
         # Password
         reg_pwd_label = ctk.CTkLabel(
             self.form_frame,
             text="Password",
-            font=("Arial", 13, "bold"),
+            font=("Arial", 12, "bold"),
             anchor="w"
         )
-        reg_pwd_label.pack(fill="x", pady=(0, 4))
+        reg_pwd_label.pack(fill="x", pady=(0, 2))
 
         self.reg_password_entry = ctk.CTkEntry(
             self.form_frame,
-            height=38,
-            placeholder_text="Enter password (min 4 chars)",
+            height=34,
+            placeholder_text="Password (min 4 chars)",
             show="*",
-            font=("Arial", 13)
+            font=("Arial", 12)
         )
-        self.reg_password_entry.pack(fill="x", pady=(0, 12))
+        self.reg_password_entry.pack(fill="x", pady=(0, 8))
 
         # Confirm Password
         reg_confirm_label = ctk.CTkLabel(
             self.form_frame,
             text="Confirm Password",
-            font=("Arial", 13, "bold"),
+            font=("Arial", 12, "bold"),
             anchor="w"
         )
-        reg_confirm_label.pack(fill="x", pady=(0, 4))
+        reg_confirm_label.pack(fill="x", pady=(0, 2))
 
         self.reg_confirm_entry = ctk.CTkEntry(
             self.form_frame,
-            height=38,
+            height=34,
             placeholder_text="Re-type password",
             show="*",
-            font=("Arial", 13)
+            font=("Arial", 12)
         )
-        self.reg_confirm_entry.pack(fill="x", pady=(0, 8))
+        self.reg_confirm_entry.pack(fill="x", pady=(0, 6))
 
         # Show password toggle
         self.reg_show_pwd_var = ctk.BooleanVar(value=False)
@@ -266,21 +313,21 @@ class LoginWindow:
             text="Show passwords",
             variable=self.reg_show_pwd_var,
             command=self.toggle_reg_password,
-            font=("Arial", 12)
+            font=("Arial", 11)
         )
-        reg_show_pwd_check.pack(anchor="w", pady=(0, 16))
+        reg_show_pwd_check.pack(anchor="w", pady=(0, 10))
 
         # Register button
         self.reg_submit_button = ctk.CTkButton(
             self.form_frame,
-            text="Create Account & Sign In",
-            height=40,
-            font=("Arial", 14, "bold"),
+            text="Create Faculty Account & Sign In",
+            height=38,
+            font=("Arial", 13, "bold"),
             fg_color="#10B981",
             hover_color="#059669",
             command=self.register_user
         )
-        self.reg_submit_button.pack(fill="x", pady=(0, 12))
+        self.reg_submit_button.pack(fill="x", pady=(0, 8))
 
         # Switch link button
         switch_btn = ctk.CTkButton(
@@ -321,10 +368,11 @@ class LoginWindow:
 
         user = authenticate_user(username, password)
         if user:
+            role = user.get("role", "Faculty")
             messagebox.showinfo(
                 "Login Successful",
-                f"Welcome, {user.get('username', 'Admin')}!\n\n"
-                f"Login successful.",
+                f"Welcome, {user.get('username', 'User')}!\n\n"
+                f"Logged in as {role}.",
                 parent=self.window
             )
 
@@ -343,12 +391,14 @@ class LoginWindow:
         else:
             messagebox.showerror(
                 "Login Failed",
-                "Invalid username or password.\n\nPlease check your credentials or create a new account.",
+                "Invalid username or password.\n\nPlease check your credentials or register as a faculty member.",
                 parent=self.window
             )
 
     def register_user(self):
         username = self.reg_username_entry.get().strip()
+        fullname = self.reg_fullname_entry.get().strip()
+        department = self.reg_dept_combo.get().strip()
         password = self.reg_password_entry.get()
         confirm_pwd = self.reg_confirm_entry.get()
 
@@ -377,14 +427,21 @@ class LoginWindow:
             self.reg_confirm_entry.focus()
             return
 
-        success, msg = add_user(username, password)
+        # New user registrations are Faculty accounts by default
+        success, msg = add_user(
+            username=username,
+            password=password,
+            role="Faculty",
+            full_name=fullname if fullname else username,
+            department=department
+        )
         if not success:
-            messagebox.showerror("Create Account Failed", msg, parent=self.window)
+            messagebox.showerror("Registration Failed", msg, parent=self.window)
             return
 
         messagebox.showinfo(
-            "Account Created",
-            f"Account '{username}' created successfully!\n\nLogging you in now...",
+            "Faculty Account Created",
+            f"Faculty account '{username}' registered successfully!\n\nLogging in to your Faculty Portal...",
             parent=self.window
         )
 

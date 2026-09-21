@@ -320,9 +320,10 @@ class Dashboard:
         )
 
         username_str = self.current_user.get("username", "Administrator")
+        role_str = self.current_user.get("role", "Administrator")
         user_label = ctk.CTkLabel(
             top_bar,
-            text=f"👤 {username_str}",
+            text=f"👤 {username_str} ({role_str})",
             font=(
                 "Arial",
                 13,
@@ -354,6 +355,10 @@ class Dashboard:
         self.show_page("home", add_history=False)
 
     def build_homepage(self):
+        is_faculty = (self.current_user.get("role") == "Faculty")
+        if is_faculty:
+            self.build_faculty_homepage()
+            return
 
         dashboard_content = ctk.CTkScrollableFrame(
             self.page_container,
@@ -1154,6 +1159,12 @@ class Dashboard:
     # ========================================================
 
     def show_page(self, page, add_history=True):
+        is_faculty = (self.current_user.get("role") == "Faculty")
+
+        # Restrict faculty from accessing admin management pages
+        if is_faculty and page in ["faculty", "subjects", "classrooms", "classes", "assignments", "generate"]:
+            page = "home"
+
         if add_history:
             if self.history[self.history_index] == page:
                 return
@@ -1194,7 +1205,12 @@ class Dashboard:
             GenerateTimetableWindow(self.window, container=self.page_container,
                                     navigate=self.show_page)
         elif page == "view_timetable":
-            ViewTimetableWindow(self.window, container=self.page_container)
+            is_faculty = (self.current_user.get("role") == "Faculty")
+            ViewTimetableWindow(
+                self.window,
+                container=self.page_container,
+                faculty_user=self.current_user if is_faculty else None
+            )
         else:
             self.build_settings_page()
 
@@ -1218,6 +1234,94 @@ class Dashboard:
             state=("normal" if self.history_index < len(self.history) - 1
                    else "disabled")
         )
+
+    def build_faculty_homepage(self):
+        content = ctk.CTkScrollableFrame(self.page_container, fg_color="#F5F7FA")
+        content.pack(fill="both", expand=True, padx=24, pady=24)
+
+        user_name = self.current_user.get("username", "Faculty")
+
+        # Greeting banner
+        header = ctk.CTkFrame(content, fg_color="white", corner_radius=14, border_width=1, border_color="#E5E7EB")
+        header.pack(fill="x", pady=(0, 20))
+
+        inner = ctk.CTkFrame(header, fg_color="transparent")
+        inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            inner,
+            text=f"Welcome, {user_name} 👋",
+            font=("Arial", 26, "bold"),
+            text_color="#111827"
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            inner,
+            text="Faculty Academic Portal • View your allocated classes, lecture slots, and teaching schedules.",
+            font=("Arial", 14),
+            text_color="#6B7280"
+        ).pack(anchor="w", pady=(4, 0))
+
+        # Main Action Card: My Timetable
+        tt_card = ctk.CTkFrame(content, fg_color="white", corner_radius=14, border_width=1, border_color="#E5E7EB")
+        tt_card.pack(fill="x", pady=(0, 20))
+
+        tt_inner = ctk.CTkFrame(tt_card, fg_color="transparent")
+        tt_inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            tt_inner,
+            text="📅   My Weekly Teaching Schedule",
+            font=("Arial", 18, "bold"),
+            text_color="#1F2937"
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            tt_inner,
+            text="Access your complete weekly timetable with subject codes, assigned classrooms, and time slots.",
+            font=("Arial", 13),
+            text_color="#6B7280"
+        ).pack(anchor="w", pady=(4, 16))
+
+        btn_row = ctk.CTkFrame(tt_inner, fg_color="transparent")
+        btn_row.pack(fill="x")
+
+        view_btn = ctk.CTkButton(
+            btn_row,
+            text="Open My Timetable",
+            height=42,
+            width=200,
+            font=("Arial", 14, "bold"),
+            command=lambda: self.show_page("view_timetable")
+        )
+        view_btn.pack(side="left")
+
+        # Account & Quick Guidelines Card
+        info_card = ctk.CTkFrame(content, fg_color="white", corner_radius=14, border_width=1, border_color="#E5E7EB")
+        info_card.pack(fill="x")
+
+        info_inner = ctk.CTkFrame(info_card, fg_color="transparent")
+        info_inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            info_inner,
+            text="ℹ️   Faculty Guidelines & Notice",
+            font=("Arial", 16, "bold"),
+            text_color="#1F2937"
+        ).pack(anchor="w")
+
+        guideline_text = (
+            "• Timetables are generated and managed centrally by the Academic Administrator.\n"
+            "• You can download and print a structured PDF of your weekly schedule directly from the timetable page.\n"
+            "• For schedule adjustments, subject changes, or classroom reassignment, please contact the Administrator."
+        )
+        ctk.CTkLabel(
+            info_inner,
+            text=guideline_text,
+            font=("Arial", 13),
+            text_color="#4B5563",
+            justify="left"
+        ).pack(anchor="w", pady=(8, 0))
 
     def build_settings_page(self):
         page = ctk.CTkScrollableFrame(self.page_container, fg_color="transparent")

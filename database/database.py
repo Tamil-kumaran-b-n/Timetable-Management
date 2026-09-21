@@ -259,8 +259,18 @@ def create_tables():
 # USER & AUTHENTICATION FUNCTIONS
 # =========================================================
 
-def add_user(username: str, password: str, role: str = "Administrator"):
-    """Register a new user with salted PBKDF2 password encryption."""
+def add_user(
+    username: str,
+    password: str,
+    role: str = "Faculty",
+    full_name: str = None,
+    department: str = "General",
+    email: str = "",
+    phone: str = ""
+):
+    """Register a new user with salted PBKDF2 password encryption.
+    New registered accounts default to Faculty and are automatically added to the faculty list.
+    """
     username = username.strip()
     if not username or not password:
         return False, "Username and password cannot be empty."
@@ -286,10 +296,51 @@ def add_user(username: str, password: str, role: str = "Administrator"):
             "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
             (username, encrypted_pwd, role)
         )
+
+        # If faculty user, automatically register in the faculty table for timetable and workload assignments
+        if role == "Faculty":
+            display_name = full_name.strip() if full_name and full_name.strip() else username
+            fac_code = f"FAC-{username.upper()}"
+            dept = department.strip() if department and department.strip() else "General"
+            mail = email.strip() if email else f"{username.lower()}@college.edu"
+
+            cursor.execute(
+                "SELECT id FROM faculty WHERE LOWER(name) = LOWER(?) OR LOWER(faculty_id) = LOWER(?)",
+                (display_name, fac_code)
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    """
+                    INSERT INTO faculty (faculty_id, name, department, email, phone)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (fac_code, display_name, dept, mail, phone)
+                )
+
         conn.commit()
-        return True, "User registered successfully."
+        return True, "Account created successfully."
     except Exception as e:
         return False, f"Database error: {str(e)}"
+    finally:
+        conn.close()
+
+
+def get_faculty_for_user(username: str):
+    """Fetch the faculty database record matching a username or name."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, faculty_id, name, department, email, phone
+            FROM faculty
+            WHERE LOWER(name) = LOWER(?)
+               OR LOWER(faculty_id) = LOWER(?)
+               OR LOWER(faculty_id) = LOWER(?)
+            """,
+            (username.strip(), username.strip(), f"FAC-{username.strip().upper()}")
+        )
+        return cursor.fetchone()
     finally:
         conn.close()
 
