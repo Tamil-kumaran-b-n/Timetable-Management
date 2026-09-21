@@ -3,13 +3,14 @@ from ui.login import LoginWindow
 from ui.dashboard import Dashboard
 
 
-def open_dashboard():
-    dashboard = Dashboard()
-    dashboard.run()
+def open_dashboard(window=None, current_user=None):
+    dashboard = Dashboard(window=window, current_user=current_user)
+    if window is None:
+        dashboard.run()
 
 
 def main():
-    # Create database tables
+    # Create database tables & seed initial data
     create_tables()
 
     # Start login screen

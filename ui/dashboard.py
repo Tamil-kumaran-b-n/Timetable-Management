@@ -11,7 +11,9 @@ from ui.assignments import AssignmentsWindow
 from database.database import (
     get_all_faculty,
     get_all_subjects,
-    get_all_classrooms
+    get_all_classrooms,
+    get_app_setting,
+    set_app_setting
 )
 
 from database.generator import (
@@ -21,9 +23,28 @@ from database.generator import (
 
 class Dashboard:
 
-    def __init__(self):
+    def __init__(self, window=None, current_user=None):
 
-        self.window = ctk.CTk()
+        self.current_user = current_user or {"username": "Administrator", "role": "Administrator"}
+
+        # Apply saved appearance and scaling settings
+        saved_mode = get_app_setting("appearance_mode", "Light")
+        ctk.set_appearance_mode(saved_mode)
+        ctk.set_default_color_theme("blue")
+
+        saved_scaling = get_app_setting("ui_scaling", "100%")
+        try:
+            scale_factor = float(saved_scaling.replace("%", "").strip()) / 100.0
+            ctk.set_widget_scaling(scale_factor)
+        except Exception:
+            pass
+
+        if window is not None:
+            self.window = window
+            for widget in self.window.winfo_children():
+                widget.destroy()
+        else:
+            self.window = ctk.CTk()
 
         self.window.title(
             "Homepage - Smart Academic Timetable Management System"
@@ -47,18 +68,6 @@ class Dashboard:
         # ====================================================
 
         self.stat_value_labels = {}
-
-        # ====================================================
-        # LIGHT THEME
-        # ====================================================
-
-        ctk.set_appearance_mode(
-            "Light"
-        )
-
-        ctk.set_default_color_theme(
-            "blue"
-        )
 
         # ====================================================
         # CREATE DASHBOARD
@@ -134,10 +143,6 @@ class Dashboard:
         app_title.pack(
             pady=(35, 40)
         )
-
-        # ====================================================
-        # MAIN MENU
-        # ====================================================
 
         nav_label = ctk.CTkLabel(
             sidebar,
@@ -217,11 +222,30 @@ class Dashboard:
             command=self.settings_clicked
         )
 
+        logout_button = ctk.CTkButton(
+            sidebar,
+            text="⎋   Logout",
+            height=38,
+            fg_color="transparent",
+            hover_color=("#FEE2E2", "#451A1A"),
+            text_color="#EF4444",
+            anchor="w",
+            font=("Arial", 13, "bold"),
+            command=self.confirm_logout
+        )
+
+        logout_button.pack(
+            side="bottom",
+            fill="x",
+            padx=15,
+            pady=(0, 15)
+        )
+
         settings_button.pack(
             side="bottom",
             fill="x",
             padx=15,
-            pady=(5, 20)
+            pady=(5, 10)
         )
 
         # ====================================================
@@ -295,15 +319,17 @@ class Dashboard:
             padx=30
         )
 
+        username_str = self.current_user.get("username", "Administrator")
+        role_str = self.current_user.get("role", "Administrator")
         user_label = ctk.CTkLabel(
             top_bar,
-            text="Administrator",
+            text=f"👤 {username_str} ({role_str})",
             font=(
                 "Arial",
-                14,
+                13,
                 "bold"
             ),
-            text_color="#374151"
+            text_color=("#374151", "#D1D5DB")
         )
 
         user_label.pack(
@@ -1195,20 +1221,165 @@ class Dashboard:
         )
 
     def build_settings_page(self):
-        page = ctk.CTkFrame(self.page_container, fg_color="#F5F7FA")
-        page.pack(fill="both", expand=True, padx=30, pady=30)
+        page = ctk.CTkScrollableFrame(self.page_container, fg_color="transparent")
+        page.pack(fill="both", expand=True, padx=30, pady=25)
+
+        # Page Header
+        header_frame = ctk.CTkFrame(page, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 20))
+
         ctk.CTkLabel(
-            page,
-            text="Settings",
-            font=("Arial", 26, "bold"),
-            text_color="#111827"
-        ).pack(anchor="w", pady=(0, 8))
-        ctk.CTkLabel(
-            page,
-            text="Application settings will be available here.",
-            font=("Arial", 14),
-            text_color="#6B7280"
+            header_frame,
+            text="System & Application Settings",
+            font=("Arial", 24, "bold")
         ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            header_frame,
+            text="Configure program-wide appearance, text scaling, security, and session management.",
+            font=("Arial", 13),
+            text_color="#6B7280"
+        ).pack(anchor="w", pady=(4, 0))
+
+        # -------------------------------------------------------------
+        # 1. THEME / APPEARANCE SETTINGS CARD
+        # -------------------------------------------------------------
+        theme_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        theme_card.pack(fill="x", pady=(0, 20))
+
+        theme_inner = ctk.CTkFrame(theme_card, fg_color="transparent")
+        theme_inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            theme_inner,
+            text="🎨  Theme & Appearance (Dark / Light Mode)",
+            font=("Arial", 16, "bold")
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            theme_inner,
+            text="Switch between Light, Dark, or System mode across the entire application instantly.",
+            font=("Arial", 13),
+            text_color="#6B7280"
+        ).pack(anchor="w", pady=(2, 14))
+
+        current_mode = get_app_setting("appearance_mode", "Light")
+        self.theme_segment = ctk.CTkSegmentedButton(
+            theme_inner,
+            values=["Light", "Dark", "System"],
+            font=("Arial", 13, "bold"),
+            height=38,
+            command=self.change_appearance_mode
+        )
+        self.theme_segment.set(current_mode)
+        self.theme_segment.pack(anchor="w")
+
+        # -------------------------------------------------------------
+        # 2. TEXT SIZE & INTERFACE SCALING CARD
+        # -------------------------------------------------------------
+        scale_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        scale_card.pack(fill="x", pady=(0, 20))
+
+        scale_inner = ctk.CTkFrame(scale_card, fg_color="transparent")
+        scale_inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            scale_inner,
+            text="🔍  Text Size & Interface Scaling",
+            font=("Arial", 16, "bold")
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            scale_inner,
+            text="Adjust text and element sizes program-wide for comfortable viewing and accessibility.",
+            font=("Arial", 13),
+            text_color="#6B7280"
+        ).pack(anchor="w", pady=(2, 14))
+
+        current_scaling = get_app_setting("ui_scaling", "100%")
+        self.scaling_segment = ctk.CTkSegmentedButton(
+            scale_inner,
+            values=["80%", "90%", "100%", "110%", "120%"],
+            font=("Arial", 13, "bold"),
+            height=38,
+            command=self.change_ui_scaling
+        )
+        self.scaling_segment.set(current_scaling)
+        self.scaling_segment.pack(anchor="w")
+
+        # -------------------------------------------------------------
+        # 3. ACCOUNT & SESSION CARD
+        # -------------------------------------------------------------
+        account_card = ctk.CTkFrame(page, corner_radius=12, border_width=1, border_color=("#E5E7EB", "#374151"))
+        account_card.pack(fill="x", pady=(0, 20))
+
+        account_inner = ctk.CTkFrame(account_card, fg_color="transparent")
+        account_inner.pack(fill="x", padx=25, pady=20)
+
+        ctk.CTkLabel(
+            account_inner,
+            text="👤  User Account & Security",
+            font=("Arial", 16, "bold")
+        ).pack(anchor="w")
+
+        user_name = self.current_user.get("username", "Administrator")
+        user_role = self.current_user.get("role", "Administrator")
+
+        info_text = f"• Active Account: {user_name}\n• Role: {user_role}\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)"
+        ctk.CTkLabel(
+            account_inner,
+            text=info_text,
+            font=("Arial", 13),
+            text_color=("#4B5563", "#9CA3AF"),
+            justify="left"
+        ).pack(anchor="w", pady=(8, 16))
+
+        # Logout action
+        logout_row = ctk.CTkFrame(account_inner, fg_color="transparent")
+        logout_row.pack(fill="x")
+
+        logout_btn = ctk.CTkButton(
+            logout_row,
+            text="Log Out of Account",
+            font=("Arial", 13, "bold"),
+            fg_color="#EF4444",
+            hover_color="#DC2626",
+            height=38,
+            width=180,
+            command=self.confirm_logout
+        )
+        logout_btn.pack(side="left")
+
+    def change_appearance_mode(self, mode):
+        ctk.set_appearance_mode(mode)
+        set_app_setting("appearance_mode", mode)
+
+    def change_ui_scaling(self, scale_str):
+        try:
+            factor = float(scale_str.replace("%", "").strip()) / 100.0
+            ctk.set_widget_scaling(factor)
+            set_app_setting("ui_scaling", scale_str)
+        except Exception:
+            pass
+
+    def confirm_logout(self):
+        from tkinter import messagebox
+        confirm = messagebox.askyesno(
+            "Logout Confirmation",
+            "Are you sure you want to log out of your session?",
+            parent=self.window
+        )
+        if confirm:
+            try:
+                self.window.unbind("<FocusIn>")
+            except Exception:
+                pass
+            from ui.login import LoginWindow
+            from main import open_dashboard
+            LoginWindow(
+                window=self.window,
+                on_login_success=open_dashboard
+            )
 
     # ========================================================
     # RUN

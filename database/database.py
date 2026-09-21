@@ -1,5 +1,8 @@
 import os
 import sqlite3
+import hashlib
+import hmac
+import secrets
 
 
 # =========================================================
@@ -25,6 +28,40 @@ def get_connection():
     )
 
     return conn
+
+
+# =========================================================
+# SECURITY / PASSWORD HASHING (PBKDF2-HMAC-SHA256 WITH SALT)
+# =========================================================
+
+def hash_password(password: str) -> str:
+    """Hash a password using a secure random salt and PBKDF2-HMAC-SHA256."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100000
+    ).hex()
+    return f"{salt}${key}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a plain password against a salted PBKDF2 hash."""
+    try:
+        if not stored_hash or "$" not in stored_hash:
+            return False
+        salt, key = stored_hash.split("$", 1)
+        test_key = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            100000
+        ).hex()
+        return hmac.compare_digest(key, test_key)
+    except Exception:
+        return False
+
 
 
 # =========================================================
@@ -185,6 +222,30 @@ def create_tables():
             """
         )
 
+        # =================================================
+        # APP SETTINGS
+        # =================================================
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
+
+        # =================================================
+        # DEFAULT SEEDING: INITIAL ADMINISTRATOR
+        # =================================================
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute(
+                "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                ("admin", hash_password("admin123"), "Administrator")
+            )
+
         conn.commit()
 
     finally:
@@ -192,6 +253,126 @@ def create_tables():
         conn.close()
 
     print("Database created successfully.")
+
+
+# =========================================================
+# USER & AUTHENTICATION FUNCTIONS
+# =========================================================
+
+def add_user(username: str, password: str, role: str = "Administrator"):
+    """Register a new user with salted PBKDF2 password encryption."""
+    username = username.strip()
+    if not username or not password:
+        return False, "Username and password cannot be empty."
+
+    if len(username) < 3:
+        return False, "Username must be at least 3 characters long."
+
+    if len(password) < 4:
+        return False, "Password must be at least 4 characters long."
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+            (username,)
+        )
+        if cursor.fetchone():
+            return False, f"Username '{username}' already exists. Please choose a different name."
+
+        encrypted_pwd = hash_password(password)
+        cursor.execute(
+            "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+            (username, encrypted_pwd, role)
+        )
+        conn.commit()
+        return True, "User registered successfully."
+    except Exception as e:
+        return False, f"Database error: {str(e)}"
+    finally:
+        conn.close()
+
+
+def authenticate_user(username: str, password: str):
+    """Authenticate a user using secure salted PBKDF2 hash verification."""
+    username = username.strip()
+    if not username or not password:
+        return None
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, password, role FROM users WHERE LOWER(username) = LOWER(?)",
+            (username,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        user_id, user_name, stored_hash, role = row
+        if verify_password(password, stored_hash):
+            return {
+                "id": user_id,
+                "username": user_name,
+                "role": role
+            }
+        return None
+    finally:
+        conn.close()
+
+
+def get_user_by_username(username: str):
+    """Fetch user basic details by username."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, role FROM users WHERE LOWER(username) = LOWER(?)",
+            (username.strip(),)
+        )
+        row = cursor.fetchone()
+        if row:
+            return {"id": row[0], "username": row[1], "role": row[2]}
+        return None
+    finally:
+        conn.close()
+
+
+# =========================================================
+# APP SETTINGS FUNCTIONS
+# =========================================================
+
+def get_app_setting(key: str, default=None):
+    """Retrieve an application setting value from the database."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT value FROM app_settings WHERE key = ?",
+            (key,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else default
+    except Exception:
+        return default
+    finally:
+        conn.close()
+
+
+def set_app_setting(key: str, value: str):
+    """Save or update an application setting in the database."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)",
+            (key, str(value))
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # =========================================================
