@@ -51,7 +51,7 @@ class SubjectsWindow:
 
         main = ctk.CTkScrollableFrame(
             self.window,
-            fg_color="#F5F7FA",
+            fg_color=("#F5F7FA", "#0F172A"),
             corner_radius=0
         )
 
@@ -67,7 +67,7 @@ class SubjectsWindow:
         header = ctk.CTkFrame(
             main,
             height=80,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=0
         )
 
@@ -81,7 +81,7 @@ class SubjectsWindow:
             header,
             text="Subject Management",
             font=("Arial", 25, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             side="left",
             padx=30
@@ -91,7 +91,7 @@ class SubjectsWindow:
             header,
             text="Manage subject information and academic hours",
             font=("Arial", 13),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             side="right",
             padx=30
@@ -103,10 +103,10 @@ class SubjectsWindow:
 
         form_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         form_card.pack(
@@ -134,7 +134,7 @@ class SubjectsWindow:
             form_card,
             text="Subject Details",
             font=("Arial", 18, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).grid(
             row=0,
             column=0,
@@ -152,7 +152,7 @@ class SubjectsWindow:
             form_card,
             text="Subject Code *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=0,
@@ -183,7 +183,7 @@ class SubjectsWindow:
             form_card,
             text="Subject Name *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=1,
@@ -214,7 +214,7 @@ class SubjectsWindow:
             form_card,
             text="Department *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=2,
@@ -245,7 +245,7 @@ class SubjectsWindow:
             form_card,
             text="Semester *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=3,
             column=0,
@@ -291,7 +291,7 @@ class SubjectsWindow:
             form_card,
             text="Hours / Week *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=3,
             column=1,
@@ -405,7 +405,7 @@ class SubjectsWindow:
             search_frame,
             text="Search Subject",
             font=("Arial", 14, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).pack(
             side="left",
             padx=(0, 10)
@@ -459,10 +459,10 @@ class SubjectsWindow:
 
         list_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         list_card.pack(
@@ -479,7 +479,7 @@ class SubjectsWindow:
             list_card,
             text="Subject Records",
             font=("Arial", 18, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             anchor="w",
             padx=20,
@@ -493,7 +493,7 @@ class SubjectsWindow:
                 "department, semester and weekly hours."
             ),
             font=("Arial", 12),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             anchor="w",
             padx=20,
@@ -506,7 +506,7 @@ class SubjectsWindow:
 
         self.list_frame = ctk.CTkFrame(
             list_card,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=8
         )
 
@@ -598,7 +598,7 @@ class SubjectsWindow:
                 width=width,
                 height=40,
                 font=("Arial", 12, "bold"),
-                text_color="#111827",
+                text_color=("#111827", "#F8FAFC"),
                 fg_color="#E5E7EB",
                 corner_radius=5,
                 anchor="center"
@@ -620,7 +620,7 @@ class SubjectsWindow:
                 self.list_frame,
                 text="No subject records found.",
                 font=("Arial", 14),
-                text_color="#9CA3AF"
+                text_color=("#9CA3AF", "#64748B")
             ).grid(
                 row=1,
                 column=0,
@@ -719,8 +719,8 @@ class SubjectsWindow:
                     width=width,
                     height=42,
                     font=("Arial", 12),
-                    text_color="#374151",
-                    fg_color="#F9FAFB",
+                    text_color=("#374151", "#E2E8F0"),
+                    fg_color=("#F9FAFB", "#334155"),
                     corner_radius=4,
                     anchor="w"
                 ).grid(
@@ -739,7 +739,7 @@ class SubjectsWindow:
                 self.list_frame,
                 width=210,
                 height=42,
-                fg_color="#F9FAFB",
+                fg_color=("#F9FAFB", "#334155"),
                 corner_radius=4
             )
 

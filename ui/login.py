@@ -4,6 +4,7 @@ from tkinter import messagebox
 from database.database import (
     authenticate_user,
     add_user,
+    get_all_subjects,
     get_app_setting
 )
 
@@ -12,6 +13,7 @@ class LoginWindow:
     def __init__(self, window=None, on_login_success=None):
         self.on_login_success = on_login_success
         self.current_mode = "login"  # "login" or "register"
+        self.subjects_data = []
 
         # Apply saved appearance and scaling settings
         saved_mode = get_app_setting("appearance_mode", "Light")
@@ -35,15 +37,16 @@ class LoginWindow:
         self.window.title(
             "Login - Smart Academic Timetable Management System"
         )
-        self.window.geometry("1000x720")
-        self.window.minsize(900, 650)
+        self.window.geometry("1000x740")
+        self.window.minsize(900, 660)
 
         self.create_login_screen()
 
     def create_login_screen(self):
-        # Main background container
+        # Main background container with responsive dark/light color
         self.container = ctk.CTkFrame(
             self.window,
+            fg_color=("#F5F7FA", "#0F172A"),
             corner_radius=0
         )
         self.container.pack(fill="both", expand=True)
@@ -52,26 +55,28 @@ class LoginWindow:
         self.title_label = ctk.CTkLabel(
             self.container,
             text="Smart Academic Timetable Management System",
-            font=("Arial", 28, "bold")
+            font=("Arial", 28, "bold"),
+            text_color=("#111827", "#F8FAFC")
         )
-        self.title_label.pack(pady=(35, 6))
+        self.title_label.pack(pady=(30, 6))
 
         # Subtitle
         self.subtitle_label = ctk.CTkLabel(
             self.container,
             text="College Academic Management Portal",
             font=("Arial", 15),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         )
-        self.subtitle_label.pack(pady=(0, 16))
+        self.subtitle_label.pack(pady=(0, 14))
 
         # Center card container
         self.card = ctk.CTkFrame(
             self.container,
-            width=460,
+            width=480,
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=16,
             border_width=1,
-            border_color=("#E5E7EB", "#374151")
+            border_color=("#E5E7EB", "#334155")
         )
         self.card.pack(pady=5)
 
@@ -84,20 +89,20 @@ class LoginWindow:
             height=36
         )
         self.mode_segment.set("Sign In")
-        self.mode_segment.pack(fill="x", padx=35, pady=(20, 15))
+        self.mode_segment.pack(fill="x", padx=35, pady=(18, 14))
 
         # Dynamic form container inside the card
         self.form_frame = ctk.CTkFrame(self.card, fg_color="transparent")
-        self.form_frame.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+        self.form_frame.pack(fill="both", expand=True, padx=30, pady=(0, 18))
 
         # Footer
         self.footer = ctk.CTkLabel(
             self.container,
             text="Smart Academic Timetable Management System • Secured with Salted PBKDF2 Encryption",
             font=("Arial", 11),
-            text_color="#9CA3AF"
+            text_color=("#9CA3AF", "#64748B")
         )
-        self.footer.pack(side="bottom", pady=14)
+        self.footer.pack(side="bottom", pady=12)
 
         # Render initial form
         self.render_login_form()
@@ -117,7 +122,8 @@ class LoginWindow:
         login_title = ctk.CTkLabel(
             self.form_frame,
             text="Sign In to Portal",
-            font=("Arial", 20, "bold")
+            font=("Arial", 20, "bold"),
+            text_color=("#111827", "#F8FAFC")
         )
         login_title.pack(pady=(5, 16))
 
@@ -126,6 +132,7 @@ class LoginWindow:
             self.form_frame,
             text="Account Name (Username)",
             font=("Arial", 13, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         username_label.pack(fill="x", pady=(0, 4))
@@ -143,6 +150,7 @@ class LoginWindow:
             self.form_frame,
             text="Password",
             font=("Arial", 13, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         password_label.pack(fill="x", pady=(0, 4))
@@ -163,7 +171,8 @@ class LoginWindow:
             text="Show password",
             variable=self.show_password_var,
             command=self.toggle_login_password,
-            font=("Arial", 12)
+            font=("Arial", 12),
+            text_color=("#374151", "#E2E8F0")
         )
         show_password_check.pack(anchor="w", pady=(0, 16))
 
@@ -198,19 +207,27 @@ class LoginWindow:
         for w in self.form_frame.winfo_children():
             w.destroy()
 
+        # Fetch subjects fresh from database
+        try:
+            self.subjects_data = get_all_subjects() or []
+        except Exception:
+            self.subjects_data = []
+
         # Register heading
         reg_title = ctk.CTkLabel(
             self.form_frame,
             text="Register Faculty Account",
-            font=("Arial", 19, "bold")
+            font=("Arial", 19, "bold"),
+            text_color=("#111827", "#F8FAFC")
         )
-        reg_title.pack(pady=(0, 12))
+        reg_title.pack(pady=(0, 10))
 
         # Username / Account Name
         reg_user_label = ctk.CTkLabel(
             self.form_frame,
             text="Username / Account ID",
             font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         reg_user_label.pack(fill="x", pady=(0, 2))
@@ -228,6 +245,7 @@ class LoginWindow:
             self.form_frame,
             text="Faculty Full Name",
             font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         reg_name_label.pack(fill="x", pady=(0, 2))
@@ -240,41 +258,66 @@ class LoginWindow:
         )
         self.reg_fullname_entry.pack(fill="x", pady=(0, 8))
 
+        # Dynamic Subjects from DB
+        sub_options = []
+        if self.subjects_data:
+            for s in self.subjects_data:
+                # s: (id, subject_code, subject_name, department, semester)
+                code = s[1] if len(s) > 1 else ""
+                sname = s[2] if len(s) > 2 else ""
+                dept = s[3] if len(s) > 3 else ""
+                sub_options.append(f"{code} - {sname} ({dept})")
+        else:
+            sub_options = ["General (No subjects in DB)"]
+
+        reg_sub_label = ctk.CTkLabel(
+            self.form_frame,
+            text="Allocated / Primary Subject (From Database)",
+            font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
+            anchor="w"
+        )
+        reg_sub_label.pack(fill="x", pady=(0, 2))
+
+        self.reg_subject_combo = ctk.CTkComboBox(
+            self.form_frame,
+            values=sub_options,
+            height=34,
+            font=("Arial", 12),
+            command=self.on_subject_selected
+        )
+        self.reg_subject_combo.set(sub_options[0])
+        self.reg_subject_combo.pack(fill="x", pady=(0, 8))
+
         # Department
         reg_dept_label = ctk.CTkLabel(
             self.form_frame,
             text="Department",
             font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         reg_dept_label.pack(fill="x", pady=(0, 2))
 
-        self.reg_dept_combo = ctk.CTkComboBox(
+        default_dept = "Computer Science"
+        if self.subjects_data and len(self.subjects_data[0]) > 3:
+            default_dept = self.subjects_data[0][3]
+
+        self.reg_dept_entry = ctk.CTkEntry(
             self.form_frame,
-            values=[
-                "Computer Science",
-                "Information Technology",
-                "Mechanical Engineering",
-                "Civil Engineering",
-                "Electronics & Communication",
-                "Electrical Engineering",
-                "Mathematics",
-                "Physics",
-                "Chemistry",
-                "Humanities & Management",
-                "General"
-            ],
             height=34,
+            placeholder_text="Department (e.g. Computer Science)",
             font=("Arial", 12)
         )
-        self.reg_dept_combo.set("Computer Science")
-        self.reg_dept_combo.pack(fill="x", pady=(0, 8))
+        self.reg_dept_entry.insert(0, default_dept)
+        self.reg_dept_entry.pack(fill="x", pady=(0, 8))
 
         # Password
         reg_pwd_label = ctk.CTkLabel(
             self.form_frame,
             text="Password",
             font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         reg_pwd_label.pack(fill="x", pady=(0, 2))
@@ -293,6 +336,7 @@ class LoginWindow:
             self.form_frame,
             text="Confirm Password",
             font=("Arial", 12, "bold"),
+            text_color=("#374151", "#E2E8F0"),
             anchor="w"
         )
         reg_confirm_label.pack(fill="x", pady=(0, 2))
@@ -313,9 +357,10 @@ class LoginWindow:
             text="Show passwords",
             variable=self.reg_show_pwd_var,
             command=self.toggle_reg_password,
-            font=("Arial", 11)
+            font=("Arial", 11),
+            text_color=("#374151", "#E2E8F0")
         )
-        reg_show_pwd_check.pack(anchor="w", pady=(0, 10))
+        reg_show_pwd_check.pack(anchor="w", pady=(0, 8))
 
         # Register button
         self.reg_submit_button = ctk.CTkButton(
@@ -344,6 +389,18 @@ class LoginWindow:
         # Bind Enter key
         self.window.bind("<Return>", lambda event: self.register_user())
         self.reg_username_entry.focus()
+
+    def on_subject_selected(self, choice):
+        # Auto-update department field based on chosen subject
+        if self.subjects_data:
+            for s in self.subjects_data:
+                code = s[1] if len(s) > 1 else ""
+                sname = s[2] if len(s) > 2 else ""
+                dept = s[3] if len(s) > 3 else ""
+                if choice.startswith(code):
+                    self.reg_dept_entry.delete(0, "end")
+                    self.reg_dept_entry.insert(0, dept)
+                    break
 
     def toggle_login_password(self):
         show_char = "" if self.show_password_var.get() else "*"
@@ -398,7 +455,7 @@ class LoginWindow:
     def register_user(self):
         username = self.reg_username_entry.get().strip()
         fullname = self.reg_fullname_entry.get().strip()
-        department = self.reg_dept_combo.get().strip()
+        department = self.reg_dept_entry.get().strip()
         password = self.reg_password_entry.get()
         confirm_pwd = self.reg_confirm_entry.get()
 
@@ -433,7 +490,7 @@ class LoginWindow:
             password=password,
             role="Faculty",
             full_name=fullname if fullname else username,
-            department=department
+            department=department if department else "General"
         )
         if not success:
             messagebox.showerror("Registration Failed", msg, parent=self.window)

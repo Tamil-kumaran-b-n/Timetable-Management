@@ -46,7 +46,7 @@ class FacultyWindow:
 
         main = ctk.CTkScrollableFrame(
             self.window,
-            fg_color="#F5F7FA",
+            fg_color=("#F5F7FA", "#0F172A"),
             corner_radius=0
         )
 
@@ -62,7 +62,7 @@ class FacultyWindow:
         header = ctk.CTkFrame(
             main,
             height=80,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=0
         )
 
@@ -73,7 +73,7 @@ class FacultyWindow:
             header,
             text="Faculty Management",
             font=("Arial", 25, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             side="left",
             padx=30
@@ -83,7 +83,7 @@ class FacultyWindow:
             header,
             text="Manage faculty information and workloads",
             font=("Arial", 13),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             side="right",
             padx=30
@@ -95,10 +95,10 @@ class FacultyWindow:
 
         form_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         form_card.pack(
@@ -122,7 +122,7 @@ class FacultyWindow:
             form_card,
             text="Faculty Details",
             font=("Arial", 18, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).grid(
             row=0,
             column=0,
@@ -140,7 +140,7 @@ class FacultyWindow:
             form_card,
             text="Faculty ID",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=0,
@@ -171,7 +171,7 @@ class FacultyWindow:
             form_card,
             text="Faculty Name *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=1,
@@ -202,7 +202,7 @@ class FacultyWindow:
             form_card,
             text="Department *",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=1,
             column=2,
@@ -233,7 +233,7 @@ class FacultyWindow:
             form_card,
             text="Email",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=3,
             column=0,
@@ -264,7 +264,7 @@ class FacultyWindow:
             form_card,
             text="Phone",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=3,
             column=1,
@@ -359,7 +359,7 @@ class FacultyWindow:
             search_frame,
             text="Search Faculty",
             font=("Arial", 14, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).pack(
             side="left",
             padx=(0, 10)
@@ -407,10 +407,10 @@ class FacultyWindow:
 
         list_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         list_card.pack(
@@ -423,7 +423,7 @@ class FacultyWindow:
             list_card,
             text="Faculty Records",
             font=("Arial", 18, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             anchor="w",
             padx=20,
@@ -434,7 +434,7 @@ class FacultyWindow:
             list_card,
             text="Manage faculty members and add their workloads.",
             font=("Arial", 12),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             anchor="w",
             padx=20,
@@ -447,7 +447,7 @@ class FacultyWindow:
 
         self.list_frame = ctk.CTkFrame(
             list_card,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=8
         )
 
@@ -509,7 +509,7 @@ class FacultyWindow:
                 width=width,
                 height=40,
                 font=("Arial", 12, "bold"),
-                text_color="#111827",
+                text_color=("#111827", "#F8FAFC"),
                 fg_color="#E5E7EB",
                 corner_radius=5,
                 anchor="center"
@@ -531,7 +531,7 @@ class FacultyWindow:
                 self.list_frame,
                 text="No faculty records found.",
                 font=("Arial", 14),
-                text_color="#9CA3AF"
+                text_color=("#9CA3AF", "#64748B")
             ).grid(
                 row=1,
                 column=0,
@@ -579,8 +579,8 @@ class FacultyWindow:
                     width=width,
                     height=42,
                     font=("Arial", 12),
-                    text_color="#374151",
-                    fg_color="#F9FAFB",
+                    text_color=("#374151", "#E2E8F0"),
+                    fg_color=("#F9FAFB", "#334155"),
                     corner_radius=4,
                     anchor="w"
                 ).grid(
@@ -599,7 +599,7 @@ class FacultyWindow:
                 self.list_frame,
                 width=270,
                 height=42,
-                fg_color="#F9FAFB",
+                fg_color=("#F9FAFB", "#334155"),
                 corner_radius=4
             )
 

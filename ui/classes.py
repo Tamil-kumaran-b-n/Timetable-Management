@@ -32,7 +32,7 @@ class ClassesWindow:
 
         self.main_frame = ctk.CTkScrollableFrame(
             self.window,
-            fg_color="white",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=0
         )
 
@@ -52,7 +52,7 @@ class ClassesWindow:
                 size=26,
                 weight="bold"
             ),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         )
 
         title.pack(
@@ -74,7 +74,7 @@ class ClassesWindow:
             font=ctk.CTkFont(
                 size=13
             ),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         )
 
         subtitle.pack(
@@ -89,7 +89,7 @@ class ClassesWindow:
 
         form_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color="#F8FAFC",
+            fg_color=("#F8FAFC", "#1E293B"),
             corner_radius=10
         )
 
@@ -110,7 +110,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         )
 
         department_label.grid(
@@ -146,7 +146,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         )
 
         duration_label.grid(
@@ -189,7 +189,7 @@ class ClassesWindow:
                 size=13,
                 weight="bold"
             ),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         )
 
         year_label.grid(
@@ -246,7 +246,7 @@ class ClassesWindow:
             font=ctk.CTkFont(
                 size=11
             ),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         )
 
         info_label.grid(
@@ -378,7 +378,7 @@ class ClassesWindow:
 
         self.table_frame = ctk.CTkFrame(
             self.main_frame,
-            fg_color="#F8FAFC",
+            fg_color=("#F8FAFC", "#1E293B"),
             corner_radius=10
         )
 
@@ -1001,7 +1001,7 @@ class ClassesWindow:
                     size=13,
                     weight="bold"
                 ),
-                text_color="#111827",
+                text_color=("#111827", "#F8FAFC"),
                 fg_color="#E5E7EB",
                 corner_radius=4
             )
@@ -1026,7 +1026,7 @@ class ClassesWindow:
                 font=ctk.CTkFont(
                     size=14
                 ),
-                text_color="#6B7280"
+                text_color=("#6B7280", "#94A3B8")
             )
 
             empty_label.grid(
@@ -1079,7 +1079,7 @@ class ClassesWindow:
                     font=ctk.CTkFont(
                         size=12
                     ),
-                    text_color="#374151",
+                    text_color=("#374151", "#E2E8F0"),
                     anchor="w"
                 )
 

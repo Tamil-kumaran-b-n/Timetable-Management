@@ -958,7 +958,7 @@ class ClassroomsWindow:
                     width=width,
                     height=42,
                     fg_color=row_bg,
-                    text_color="#374151",
+                    text_color=("#374151", "#E2E8F0"),
                     font=ctk.CTkFont(
                         size=12
                     ),

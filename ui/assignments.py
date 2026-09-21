@@ -73,7 +73,7 @@ class AssignmentsWindow:
 
         main = ctk.CTkScrollableFrame(
             self.window,
-            fg_color="#F5F7FA",
+            fg_color=("#F5F7FA", "#0F172A"),
             corner_radius=0
         )
 
@@ -89,7 +89,7 @@ class AssignmentsWindow:
         header = ctk.CTkFrame(
             main,
             height=80,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=0
         )
 
@@ -103,7 +103,7 @@ class AssignmentsWindow:
             header,
             text="Faculty Workload Management",
             font=("Arial", 25, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             side="left",
             padx=30
@@ -116,7 +116,7 @@ class AssignmentsWindow:
                 "for each faculty"
             ),
             font=("Arial", 13),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             side="right",
             padx=30
@@ -128,10 +128,10 @@ class AssignmentsWindow:
 
         form_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         form_card.pack(
@@ -155,7 +155,7 @@ class AssignmentsWindow:
             form_card,
             text="Faculty",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=0,
             column=0,
@@ -188,7 +188,7 @@ class AssignmentsWindow:
             form_card,
             text="Class / Year",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=0,
             column=1,
@@ -221,7 +221,7 @@ class AssignmentsWindow:
             form_card,
             text="Subject",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=0,
             column=2,
@@ -253,7 +253,7 @@ class AssignmentsWindow:
             form_card,
             text="Priority",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=2,
             column=0,
@@ -292,7 +292,7 @@ class AssignmentsWindow:
             form_card,
             text="Periods / Week",
             font=("Arial", 13, "bold"),
-            text_color="#374151"
+            text_color=("#374151", "#E2E8F0")
         ).grid(
             row=2,
             column=1,
@@ -408,7 +408,7 @@ class AssignmentsWindow:
                 "priority and required periods per week."
             ),
             font=("Arial", 12),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             anchor="w",
             padx=30,
@@ -421,10 +421,10 @@ class AssignmentsWindow:
 
         list_card = ctk.CTkFrame(
             main,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=12,
             border_width=1,
-            border_color="#E5E7EB"
+            border_color=("#E5E7EB", "#334155")
         )
 
         list_card.pack(
@@ -441,7 +441,7 @@ class AssignmentsWindow:
             list_card,
             text="Assigned Faculty Workloads",
             font=("Arial", 18, "bold"),
-            text_color="#111827"
+            text_color=("#111827", "#F8FAFC")
         ).pack(
             anchor="w",
             padx=20,
@@ -455,7 +455,7 @@ class AssignmentsWindow:
                 "subject, priority and weekly periods."
             ),
             font=("Arial", 12),
-            text_color="#6B7280"
+            text_color=("#6B7280", "#94A3B8")
         ).pack(
             anchor="w",
             padx=20,
@@ -468,7 +468,7 @@ class AssignmentsWindow:
 
         self.list_frame = ctk.CTkFrame(
             list_card,
-            fg_color="#FFFFFF",
+            fg_color=("#FFFFFF", "#1E293B"),
             corner_radius=8
         )
 
@@ -1307,7 +1307,7 @@ class AssignmentsWindow:
                 width=width,
                 height=40,
                 font=("Arial", 12, "bold"),
-                text_color="#111827",
+                text_color=("#111827", "#F8FAFC"),
                 fg_color="#E5E7EB",
                 corner_radius=5,
                 anchor="center"
@@ -1329,7 +1329,7 @@ class AssignmentsWindow:
                 self.list_frame,
                 text="No faculty workloads assigned.",
                 font=("Arial", 14),
-                text_color="#9CA3AF"
+                text_color=("#9CA3AF", "#64748B")
             ).grid(
                 row=1,
                 column=0,
@@ -1427,8 +1427,8 @@ class AssignmentsWindow:
                     width=width,
                     height=42,
                     font=("Arial", 12),
-                    text_color="#374151",
-                    fg_color="#F9FAFB",
+                    text_color=("#374151", "#E2E8F0"),
+                    fg_color=("#F9FAFB", "#334155"),
                     corner_radius=4,
                     anchor="w"
                 ).grid(
@@ -1447,7 +1447,7 @@ class AssignmentsWindow:
                 self.list_frame,
                 width=190,
                 height=42,
-                fg_color="#F9FAFB",
+                fg_color=("#F9FAFB", "#334155"),
                 corner_radius=4
             )
 
