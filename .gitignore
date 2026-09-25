@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+build/
+dist/
+*.spec
+.pyinstaller_temp/
+temp_build/
+database/timetable.db*
