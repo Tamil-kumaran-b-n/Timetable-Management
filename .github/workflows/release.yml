@@ -41,12 +41,17 @@ jobs:
           name: TimetableManagement-Windows
           path: dist/TimetableManagement.exe
 
-      - name: Create / Update GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/') && format('Release {0}', github.ref_name) || 'Smart Timetable Management v1.0.0' }}
-          files: dist/TimetableManagement.exe
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tagName = if ($env:GITHUB_REF -like 'refs/tags/*') { $env:GITHUB_REF_NAME } else { 'v1.0.0' }
+          $relTitle = if ($env:GITHUB_REF -like 'refs/tags/*') { "Release $env:GITHUB_REF_NAME" } else { 'Smart Timetable Management v1.0.0' }
+          $notes = "Automated release of Smart Academic Timetable Management System ($tagName)"
+          
+          if (gh release view $tagName 2>$null) {
+            gh release upload $tagName dist/TimetableManagement.exe --clobber
+          } else {
+            gh release create $tagName dist/TimetableManagement.exe --title "$relTitle" --notes "$notes" --clobber
+          }
