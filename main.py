@@ -4,6 +4,7 @@ from database.database import create_tables
 from ui.login import LoginWindow
 from ui.dashboard import Dashboard
 from ui.theme import apply_theme, apply_scaling
+from manifest import MANIFEST
 active_dashboard = None
 active_login = None
 
@@ -18,7 +19,7 @@ def main():
     global active_login
     create_tables()
     app = QApplication.instance() or QApplication(sys.argv)
-    app.setApplicationName('Smart Academic Timetable Management System')
+    app.setApplicationName(MANIFEST.get('app_name', 'Smart Academic Timetable Management System'))
     apply_theme(app)
     apply_scaling(app)
     active_login = LoginWindow(on_login_success=open_dashboard)

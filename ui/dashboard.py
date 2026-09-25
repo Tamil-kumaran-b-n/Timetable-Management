@@ -11,13 +11,15 @@ from ui.assignments import AssignmentsWindow
 from ui.theme import apply_theme, apply_scaling
 from database.database import get_all_faculty, get_all_subjects, get_all_classrooms, get_app_setting, set_app_setting, get_connection
 from database.generator import get_all_timetable
+from manifest import MANIFEST
+from updater import UpdateCheckerThread, UpdateDialog
 
 class Dashboard(QMainWindow):
 
     def __init__(self, parent=None, current_user=None, window=None):
         super().__init__(parent)
         self.current_user = current_user or {'username': 'Administrator', 'role': 'Administrator'}
-        self.setWindowTitle('Smart Academic Timetable Management System')
+        self.setWindowTitle(MANIFEST.get('app_name', 'Smart Academic Timetable Management System'))
         self.resize(1200, 720)
         self.setMinimumSize(950, 620)
         apply_theme(mode=get_app_setting('appearance_mode', 'Light'), scale_str=get_app_setting('ui_scaling', '100%'))
@@ -26,6 +28,9 @@ class Dashboard(QMainWindow):
         self.nav_buttons = {}
         self.stat_labels = {}
         self.setup_ui()
+        self.update_checker = UpdateCheckerThread(manual=False, parent=self)
+        self.update_checker.update_available.connect(self.prompt_update)
+        self.update_checker.start()
 
     def setup_ui(self):
         central_widget = QWidget(self)
@@ -447,16 +452,37 @@ class Dashboard(QMainWindow):
         credits_layout.addWidget(lbl_cr)
         credits_layout.addWidget(lbl_crs)
 
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
         btn_credits = QPushButton('Credits')
         btn_credits.setProperty('btnStyle', 'secondary')
         btn_credits.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_credits.setFixedWidth(140)
+        btn_credits.setFixedWidth(120)
         btn_credits.clicked.connect(lambda: CreditsDialog(self).exec())
-        credits_layout.addWidget(btn_credits, 0, Qt.AlignmentFlag.AlignLeft)
+        btn_layout.addWidget(btn_credits)
 
+        btn_updates = QPushButton('Check for Updates')
+        btn_updates.setProperty('btnStyle', 'secondary')
+        btn_updates.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_updates.setFixedWidth(150)
+        btn_updates.clicked.connect(self.manual_check_updates)
+        btn_layout.addWidget(btn_updates)
+        btn_layout.addStretch()
+
+        credits_layout.addLayout(btn_layout)
         layout.addWidget(credits_card)
         layout.addStretch()
         return scroll
+
+    def prompt_update(self, update_info):
+        dialog = UpdateDialog(update_info, parent=self)
+        dialog.exec()
+
+    def manual_check_updates(self):
+        self.manual_checker = UpdateCheckerThread(manual=True, parent=self)
+        self.manual_checker.update_available.connect(self.prompt_update)
+        self.manual_checker.no_update.connect(lambda info: QMessageBox.information(self, 'Check for Updates', f"You are using the latest version (v{info.get('current_version', '1.0.0')})."))
+        self.manual_checker.start()
 
     def change_theme(self, mode):
         set_app_setting('appearance_mode', mode)
@@ -493,13 +519,15 @@ class CreditsDialog(QDialog):
         layout.setContentsMargins(30, 25, 30, 25)
         layout.setSpacing(14)
 
-        title = QLabel('Smart Academic Timetable Management System')
+        app_name = MANIFEST.get('app_name', 'Smart Academic Timetable Management System')
+        title = QLabel(app_name)
         title.setObjectName('Heading')
         title.setWordWrap(True)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        version = QLabel('Version 1.0')
+        ver = MANIFEST.get('version', '1.0.0')
+        version = QLabel(f'Version {ver}')
         version.setObjectName('Secondary')
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version)
@@ -514,7 +542,9 @@ class CreditsDialog(QDialog):
         dev_title.setObjectName('Subheading')
         card_layout.addWidget(dev_title)
 
-        dev_names = QLabel('• Tamil Kumaran (BCA Year 3)\n• Haridharan (BCA Year 3)\n• Bakthavasalam (BCA Year 3)')
+        devs = MANIFEST.get('developers', [])
+        dev_text = '\n'.join([f'• {d}' for d in devs])
+        dev_names = QLabel(dev_text)
         dev_names.setObjectName('Body')
         card_layout.addWidget(dev_names)
 
@@ -522,7 +552,9 @@ class CreditsDialog(QDialog):
         asst_title.setObjectName('Subheading')
         card_layout.addWidget(asst_title)
 
-        asst_names = QLabel('• Joshua Thomas (External)\n• Antigravity\n• Codex')
+        assts = MANIFEST.get('assisted_by', [])
+        asst_text = '\n'.join([f'• {a}' for a in assts])
+        asst_names = QLabel(asst_text)
         asst_names.setObjectName('Body')
         card_layout.addWidget(asst_names)
 
@@ -530,7 +562,9 @@ class CreditsDialog(QDialog):
         tech_title.setObjectName('Subheading')
         card_layout.addWidget(tech_title)
 
-        tech_names = QLabel('• Made entirely in Python\n• UI Framework: PySide6')
+        techs = MANIFEST.get('tech_stack', [])
+        tech_text = '\n'.join([f'• {t}' for t in techs])
+        tech_names = QLabel(tech_text)
         tech_names.setObjectName('Body')
         card_layout.addWidget(tech_names)
 

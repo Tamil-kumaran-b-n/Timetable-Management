@@ -33,7 +33,7 @@ jobs:
 
       - name: Build Executable with PyInstaller
         run: |
-          pyinstaller --clean --noconfirm --onefile --windowed --name TimetableManagement --distpath dist --add-data "ui/styles/icons;ui/styles/icons" main.py
+          pyinstaller --clean --noconfirm --onefile --windowed --name TimetableManagement --distpath dist --add-data "ui/styles/icons;ui/styles/icons" --add-data "manifest.json;." main.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
