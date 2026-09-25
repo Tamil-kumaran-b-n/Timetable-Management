@@ -6,7 +6,7 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QGridLayout, QLabel, QLineEdit, QPushButton, QCheckBox, QComboBox,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QFrame, QScrollArea, QAbstractItemView
 )
@@ -29,8 +29,8 @@ class SubjectsWindow(QWidget):
 
         if not self.embedded:
             self.setWindowTitle("Subject Management - Smart Academic Timetable Management System")
-            self.resize(1200, 720)
-            self.setMinimumSize(1050, 650)
+            self.resize(1100, 700)
+            self.setMinimumSize(950, 600)
 
         self.setup_ui()
         self.load_subjects()
@@ -67,9 +67,9 @@ class SubjectsWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        lbl_title = QLabel("Subject Management")
+        lbl_title = QLabel("Subjects")
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        lbl_sub = QLabel("Manage academic curriculum, theory subjects, practical labs, and required hours")
+        lbl_sub = QLabel("Manage curriculum subjects and semester assignments")
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -87,14 +87,14 @@ class SubjectsWindow(QWidget):
         form_layout.setContentsMargins(25, 20, 25, 25)
         form_layout.setSpacing(15)
 
-        form_title = QLabel("Subject Details")
+        form_title = QLabel("Subject Info")
         form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         form_layout.addWidget(form_title)
 
         grid = QGridLayout()
         grid.setSpacing(14)
         grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(1, 2)
         grid.setColumnStretch(2, 1)
         grid.setColumnStretch(3, 1)
 
@@ -109,7 +109,7 @@ class SubjectsWindow(QWidget):
         lbl_name = QLabel("Subject Name *")
         lbl_name.setStyleSheet("font-weight: 600;")
         self.name_entry = QLineEdit()
-        self.name_entry.setPlaceholderText("e.g. Data Structures & Algorithms")
+        self.name_entry.setPlaceholderText("e.g. Data Structures")
         grid.addWidget(lbl_name, 0, 1)
         grid.addWidget(self.name_entry, 1, 1)
 
@@ -127,70 +127,31 @@ class SubjectsWindow(QWidget):
         grid.addWidget(lbl_sem, 0, 3)
         grid.addWidget(self.sem_combo, 1, 3)
 
-        # Row 1: Weekly Hours, Credits, Preferred Room Type, Is Lab / Lab duration
-        lbl_hours = QLabel("Hours / Week *")
-        lbl_hours.setStyleSheet("font-weight: 600;")
-        self.hours_entry = QLineEdit("4")
-        self.hours_entry.setPlaceholderText("4")
-        grid.addWidget(lbl_hours, 2, 0)
-        grid.addWidget(self.hours_entry, 3, 0)
-
-        lbl_cred = QLabel("Credits")
-        lbl_cred.setStyleSheet("font-weight: 600;")
-        self.credits_entry = QLineEdit("3")
-        self.credits_entry.setPlaceholderText("3")
-        grid.addWidget(lbl_cred, 2, 1)
-        grid.addWidget(self.credits_entry, 3, 1)
-
-        lbl_room_type = QLabel("Preferred Room Type")
-        lbl_room_type.setStyleSheet("font-weight: 600;")
-        self.room_type_combo = QComboBox()
-        self.room_type_combo.addItems(["Lecture Hall", "Computer Lab", "Science Lab", "Seminar Room", "Smart Classroom"])
-        grid.addWidget(lbl_room_type, 2, 2)
-        grid.addWidget(self.room_type_combo, 3, 2)
-
-        # Lab details
-        lab_layout = QHBoxLayout()
-        lab_layout.setContentsMargins(0, 0, 0, 0)
-        self.is_lab_check = QCheckBox("Is Lab")
-        self.is_lab_check.toggled.connect(self.on_lab_toggle)
-        lab_layout.addWidget(self.is_lab_check)
-
-        self.lab_duration_combo = QComboBox()
-        self.lab_duration_combo.addItems(["2 Hrs Block", "3 Hrs Block"])
-        self.lab_duration_combo.setEnabled(False)
-        lab_layout.addWidget(self.lab_duration_combo)
-
-        lbl_lab = QLabel("Lab Settings")
-        lbl_lab.setStyleSheet("font-weight: 600;")
-        grid.addWidget(lbl_lab, 2, 3)
-        grid.addLayout(lab_layout, 3, 3)
-
         form_layout.addLayout(grid)
 
         # Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.btn_add = QPushButton("Add Subject")
+        self.btn_add = QPushButton("Add")
         self.btn_add.setProperty("btnStyle", "success")
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self.add_subject_record)
         btn_layout.addWidget(self.btn_add)
 
-        self.btn_update = QPushButton("Update Selected")
+        self.btn_update = QPushButton("Update")
         self.btn_update.setProperty("btnStyle", "secondary")
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_update.clicked.connect(self.update_subject_record)
         btn_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete = QPushButton("Delete")
         self.btn_delete.setProperty("btnStyle", "danger")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_subject_record)
         btn_layout.addWidget(self.btn_delete)
 
-        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.setProperty("btnStyle", "ghost")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_form)
@@ -213,13 +174,13 @@ class SubjectsWindow(QWidget):
         search_layout = QHBoxLayout()
         search_layout.setSpacing(10)
 
-        lbl_tbl_title = QLabel("Subject Curriculum")
+        lbl_tbl_title = QLabel("Subjects")
         lbl_tbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         search_layout.addWidget(lbl_tbl_title)
         search_layout.addStretch()
 
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Search code, name, department...")
+        self.search_entry.setPlaceholderText("Search subjects...")
         self.search_entry.setFixedWidth(260)
         self.search_entry.textChanged.connect(self.search_records)
         search_layout.addWidget(self.search_entry)
@@ -234,17 +195,14 @@ class SubjectsWindow(QWidget):
 
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(9)
+        self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Code", "Subject Name", "Department", "Sem", "Credits", "Hours/Wk", "Lab", "Room Type"
+            "ID", "Subject Code", "Subject Name", "Department", "Semester"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -255,11 +213,6 @@ class SubjectsWindow(QWidget):
         main_layout.addWidget(table_card)
         main_layout.addStretch()
 
-    def on_lab_toggle(self, checked):
-        self.lab_duration_combo.setEnabled(checked)
-        if checked and self.room_type_combo.currentText() == "Lecture Hall":
-            self.room_type_combo.setCurrentText("Computer Lab")
-
     def load_subjects(self, records=None):
         if records is None:
             records = get_all_subjects() or []
@@ -269,12 +222,10 @@ class SubjectsWindow(QWidget):
 
         for row_idx, rec in enumerate(records):
             self.table.insertRow(row_idx)
-            for col_idx in range(min(9, len(rec))):
+            for col_idx in range(min(5, len(rec))):
                 val = rec[col_idx]
-                if col_idx == 7:
-                    val = "Yes" if val == 1 else "No"
                 item = QTableWidgetItem(str(val) if val is not None else "")
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 4, 5, 6, 7] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 4] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 self.table.setItem(row_idx, col_idx, item)
 
     def on_table_select(self):
@@ -290,12 +241,6 @@ class SubjectsWindow(QWidget):
             self.name_entry.setText(str(rec[2] or ""))
             self.dept_entry.setText(str(rec[3] or ""))
             self.sem_combo.setCurrentText(str(rec[4] or "1"))
-            self.credits_entry.setText(str(rec[5] or "3"))
-            self.hours_entry.setText(str(rec[6] or "4"))
-            is_lab = bool(rec[7]) if len(rec) > 7 else False
-            self.is_lab_check.setChecked(is_lab)
-            if len(rec) > 8 and rec[8]:
-                self.room_type_combo.setCurrentText(str(rec[8]))
 
     def clear_form(self):
         self.selected_id = None
@@ -303,19 +248,12 @@ class SubjectsWindow(QWidget):
         self.name_entry.clear()
         self.dept_entry.clear()
         self.sem_combo.setCurrentIndex(0)
-        self.credits_entry.setText("3")
-        self.hours_entry.setText("4")
-        self.is_lab_check.setChecked(False)
-        self.lab_duration_combo.setCurrentIndex(0)
-        self.room_type_combo.setCurrentIndex(0)
         self.table.clearSelection()
 
     def validate_inputs(self):
         code = self.code_entry.text().strip()
         name = self.name_entry.text().strip()
         dept = self.dept_entry.text().strip()
-        hours_str = self.hours_entry.text().strip()
-        credits_str = self.credits_entry.text().strip()
 
         if not code:
             QMessageBox.warning(self, "Validation Error", "Subject Code is required.")
@@ -332,24 +270,6 @@ class SubjectsWindow(QWidget):
             self.dept_entry.setFocus()
             return False
 
-        try:
-            hours = int(hours_str)
-            if hours < 1 or hours > 30:
-                raise ValueError()
-        except ValueError:
-            QMessageBox.warning(self, "Validation Error", "Hours/Week must be an integer between 1 and 30.")
-            self.hours_entry.setFocus()
-            return False
-
-        try:
-            creds = int(credits_str)
-            if creds < 0 or creds > 20:
-                raise ValueError()
-        except ValueError:
-            QMessageBox.warning(self, "Validation Error", "Credits must be an integer between 0 and 20.")
-            self.credits_entry.setFocus()
-            return False
-
         return True
 
     def add_subject_record(self):
@@ -359,21 +279,13 @@ class SubjectsWindow(QWidget):
         code = self.code_entry.text().strip()
         name = self.name_entry.text().strip()
         dept = self.dept_entry.text().strip()
-        sem = int(self.sem_combo.currentText())
-        creds = int(self.credits_entry.text().strip())
-        hours = int(self.hours_entry.text().strip())
-        is_lab = 1 if self.is_lab_check.isChecked() else 0
-        room_type = self.room_type_combo.currentText()
+        sem = self.sem_combo.currentText().strip()
 
-        success, msg = add_subject(
+        success = add_subject(
             subject_code=code,
-            name=name,
+            subject_name=name,
             department=dept,
-            semester=sem,
-            credits=creds,
-            hours_per_week=hours,
-            is_lab=is_lab,
-            preferred_room_type=room_type
+            semester=sem
         )
 
         if success:
@@ -381,7 +293,7 @@ class SubjectsWindow(QWidget):
             self.clear_form()
             self.load_subjects()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to add subject:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to add subject. A subject with this code already exists.")
 
     def update_subject_record(self):
         if not self.selected_id:
@@ -394,22 +306,14 @@ class SubjectsWindow(QWidget):
         code = self.code_entry.text().strip()
         name = self.name_entry.text().strip()
         dept = self.dept_entry.text().strip()
-        sem = int(self.sem_combo.currentText())
-        creds = int(self.credits_entry.text().strip())
-        hours = int(self.hours_entry.text().strip())
-        is_lab = 1 if self.is_lab_check.isChecked() else 0
-        room_type = self.room_type_combo.currentText()
+        sem = self.sem_combo.currentText().strip()
 
-        success, msg = update_subject(
-            subject_db_id=self.selected_id,
+        success = update_subject(
+            record_id=self.selected_id,
             subject_code=code,
-            name=name,
+            subject_name=name,
             department=dept,
-            semester=sem,
-            credits=creds,
-            hours_per_week=hours,
-            is_lab=is_lab,
-            preferred_room_type=room_type
+            semester=sem
         )
 
         if success:
@@ -417,7 +321,7 @@ class SubjectsWindow(QWidget):
             self.clear_form()
             self.load_subjects()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to update subject:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to update subject.")
 
     def delete_subject_record(self):
         if not self.selected_id:
@@ -432,13 +336,13 @@ class SubjectsWindow(QWidget):
         )
 
         if confirm == QMessageBox.StandardButton.Yes:
-            success, msg = delete_subject(self.selected_id)
-            if success:
+            try:
+                delete_subject(self.selected_id)
                 QMessageBox.information(self, "Deleted", "Subject deleted successfully.")
                 self.clear_form()
                 self.load_subjects()
-            else:
-                QMessageBox.critical(self, "Error", f"Failed to delete subject:\n{msg}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete subject:\n{str(e)}")
 
     def search_records(self, text):
         query = text.strip()

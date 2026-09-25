@@ -85,10 +85,10 @@ class ViewTimetableWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        title_str = "My Teaching Timetable" if self.faculty_user else "View Timetable Schedule"
+        title_str = "My Timetable" if self.faculty_user else "Timetable"
         lbl_title = QLabel(title_str)
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        sub_str = "View your weekly schedule and download PDF copy" if self.faculty_user else "View weekly schedules by class or faculty and export to PDF / CSV"
+        sub_str = "View schedule and download PDF" if self.faculty_user else "View schedules by class or faculty"
         lbl_sub = QLabel(sub_str)
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
@@ -130,11 +130,11 @@ class ViewTimetableWindow(QWidget):
         if not self.faculty_user:
             mode_box = QHBoxLayout()
             mode_box.setSpacing(15)
-            self.radio_class = QRadioButton("View by Class")
+            self.radio_class = QRadioButton("By Class")
             self.radio_class.setChecked(True)
             self.radio_class.toggled.connect(self.on_mode_change)
 
-            self.radio_faculty = QRadioButton("View by Faculty")
+            self.radio_faculty = QRadioButton("By Faculty")
             self.radio_faculty.toggled.connect(self.on_mode_change)
 
             self.mode_group = QButtonGroup(self)
@@ -147,7 +147,7 @@ class ViewTimetableWindow(QWidget):
             filter_layout.addSpacing(15)
 
         # Selector Dropdown
-        self.lbl_target = QLabel("Select Class:")
+        self.lbl_target = QLabel("Class:")
         self.lbl_target.setStyleSheet("font-weight: 600;")
         filter_layout.addWidget(self.lbl_target)
 
@@ -175,7 +175,7 @@ class ViewTimetableWindow(QWidget):
         self.grid_card_layout.setSpacing(15)
 
         # Title of the currently displayed timetable
-        self.lbl_grid_title = QLabel("Timetable Schedule")
+        self.lbl_grid_title = QLabel("Schedule")
         self.lbl_grid_title.setStyleSheet("font-size: 18px; font-weight: bold;")
         self.grid_card_layout.addWidget(self.lbl_grid_title)
 

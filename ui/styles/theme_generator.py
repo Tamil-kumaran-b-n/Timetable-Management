@@ -24,6 +24,8 @@ def generate_stylesheet(mode="Light", scale_factor=1.0) -> str:
     btn_pad_h = max(12, int(18 * scale_factor))
     input_min_h = max(24, int(26 * scale_factor))
     btn_min_h = max(24, int(26 * scale_factor))
+    nav_btn_size = max(30, int(38 * scale_factor))
+    f_arrow = max(15, int(19 * scale_factor))
 
     qss = f"""
     /* =======================================================
@@ -314,6 +316,34 @@ def generate_stylesheet(mode="Light", scale_factor=1.0) -> str:
     QPushButton[btnStyle="ghost"]:hover {{
         color: {p.TEXT_PRIMARY};
         background-color: {p.SECONDARY_HOVER};
+    }}
+
+    /* Navigation / Arrow Square Buttons */
+    QPushButton#NavArrow, QPushButton[btnStyle="icon"] {{
+        background-color: {p.SECONDARY_BG};
+        color: {p.SECONDARY_TEXT};
+        border: 1px solid {p.BORDER_INPUT};
+        border-radius: 8px;
+        padding: 0px;
+        min-width: {nav_btn_size}px;
+        max-width: {nav_btn_size}px;
+        min-height: {nav_btn_size}px;
+        max-height: {nav_btn_size}px;
+        font-size: {f_arrow}px;
+        font-weight: bold;
+        text-align: center;
+    }}
+    QPushButton#NavArrow:hover, QPushButton[btnStyle="icon"]:hover {{
+        background-color: {p.SECONDARY_HOVER};
+        border-color: {p.BORDER_INPUT_HOVER};
+    }}
+    QPushButton#NavArrow:pressed, QPushButton[btnStyle="icon"]:pressed {{
+        background-color: {p.SECONDARY_HOVER};
+    }}
+    QPushButton#NavArrow:disabled, QPushButton[btnStyle="icon"]:disabled {{
+        background-color: {p.BORDER_DEFAULT};
+        color: {p.TEXT_PLACEHOLDER};
+        border: 1px solid transparent;
     }}
 
     /* =======================================================

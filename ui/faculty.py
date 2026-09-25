@@ -70,9 +70,9 @@ class FacultyWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        lbl_title = QLabel("Faculty Management")
+        lbl_title = QLabel("Faculty")
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        lbl_sub = QLabel("Manage faculty information, qualifications, and weekly teaching workloads")
+        lbl_sub = QLabel("Manage faculty members and teaching hours")
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -80,7 +80,7 @@ class FacultyWindow(QWidget):
         header_layout.addStretch()
 
         if self.navigate:
-            btn_workload = QPushButton("Manage Workloads")
+            btn_workload = QPushButton("Workload")
             btn_workload.setProperty("btnStyle", "secondary")
             btn_workload.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_workload.clicked.connect(lambda: self.navigate("assignments"))
@@ -97,7 +97,7 @@ class FacultyWindow(QWidget):
         form_layout.setContentsMargins(25, 20, 25, 25)
         form_layout.setSpacing(15)
 
-        form_title = QLabel("Faculty Details")
+        form_title = QLabel("Faculty Info")
         form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         form_layout.addWidget(form_title)
 
@@ -105,63 +105,44 @@ class FacultyWindow(QWidget):
         grid.setSpacing(14)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(2, 1)
 
-        # Row 0: Faculty ID, Name, Department
-        lbl_fid = QLabel("Faculty ID / Code")
+        # Row 0: Faculty ID, Name
+        lbl_fid = QLabel("Faculty ID")
         lbl_fid.setStyleSheet("font-weight: 600;")
         self.faculty_id_entry = QLineEdit()
-        self.faculty_id_entry.setPlaceholderText("Example: FAC001")
+        self.faculty_id_entry.setPlaceholderText("e.g. FAC001")
         grid.addWidget(lbl_fid, 0, 0)
         grid.addWidget(self.faculty_id_entry, 1, 0)
 
-        lbl_fname = QLabel("Faculty Name *")
+        lbl_fname = QLabel("Name *")
         lbl_fname.setStyleSheet("font-weight: 600;")
         self.name_entry = QLineEdit()
-        self.name_entry.setPlaceholderText("Enter faculty name")
+        self.name_entry.setPlaceholderText("Enter name")
         grid.addWidget(lbl_fname, 0, 1)
         grid.addWidget(self.name_entry, 1, 1)
 
+        # Row 1: Department, Email
         lbl_dept = QLabel("Department *")
         lbl_dept.setStyleSheet("font-weight: 600;")
         self.department_entry = QLineEdit()
-        self.department_entry.setPlaceholderText("Example: BCA / Computer Science")
-        grid.addWidget(lbl_dept, 0, 2)
-        grid.addWidget(self.department_entry, 1, 2)
+        self.department_entry.setPlaceholderText("e.g. BCA")
+        grid.addWidget(lbl_dept, 2, 0)
+        grid.addWidget(self.department_entry, 3, 0)
 
-        # Row 1: Email, Phone, Designation
         lbl_email = QLabel("Email")
         lbl_email.setStyleSheet("font-weight: 600;")
         self.email_entry = QLineEdit()
-        self.email_entry.setPlaceholderText("example@college.edu")
-        grid.addWidget(lbl_email, 2, 0)
-        grid.addWidget(self.email_entry, 3, 0)
+        self.email_entry.setPlaceholderText("name@college.edu")
+        grid.addWidget(lbl_email, 2, 1)
+        grid.addWidget(self.email_entry, 3, 1)
 
+        # Row 2: Phone
         lbl_phone = QLabel("Phone")
         lbl_phone.setStyleSheet("font-weight: 600;")
         self.phone_entry = QLineEdit()
         self.phone_entry.setPlaceholderText("e.g. 9876543210")
-        grid.addWidget(lbl_phone, 2, 1)
-        grid.addWidget(self.phone_entry, 3, 1)
-
-        lbl_desig = QLabel("Designation")
-        lbl_desig.setStyleSheet("font-weight: 600;")
-        self.designation_entry = QLineEdit()
-        self.designation_entry.setPlaceholderText("e.g. Assistant Professor")
-        grid.addWidget(lbl_desig, 2, 2)
-        grid.addWidget(self.designation_entry, 3, 2)
-
-        # Row 2: Max Hours, Active status
-        lbl_max_hours = QLabel("Max Hours / Week")
-        lbl_max_hours.setStyleSheet("font-weight: 600;")
-        self.max_hours_entry = QLineEdit("18")
-        self.max_hours_entry.setPlaceholderText("18")
-        grid.addWidget(lbl_max_hours, 4, 0)
-        grid.addWidget(self.max_hours_entry, 5, 0)
-
-        self.is_active_check = QCheckBox("Active Faculty Member")
-        self.is_active_check.setChecked(True)
-        grid.addWidget(self.is_active_check, 5, 1, Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(lbl_phone, 4, 0)
+        grid.addWidget(self.phone_entry, 5, 0)
 
         form_layout.addLayout(grid)
 
@@ -169,25 +150,25 @@ class FacultyWindow(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.btn_add = QPushButton("Add Faculty")
+        self.btn_add = QPushButton("Add")
         self.btn_add.setProperty("btnStyle", "success")
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self.add_faculty_record)
         btn_layout.addWidget(self.btn_add)
 
-        self.btn_update = QPushButton("Update Selected")
+        self.btn_update = QPushButton("Update")
         self.btn_update.setProperty("btnStyle", "secondary")
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_update.clicked.connect(self.update_faculty_record)
         btn_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete = QPushButton("Delete")
         self.btn_delete.setProperty("btnStyle", "danger")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_faculty_record)
         btn_layout.addWidget(self.btn_delete)
 
-        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.setProperty("btnStyle", "ghost")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_form)
@@ -211,13 +192,13 @@ class FacultyWindow(QWidget):
         search_layout = QHBoxLayout()
         search_layout.setSpacing(10)
 
-        lbl_tbl_title = QLabel("Registered Faculty")
+        lbl_tbl_title = QLabel("Faculty List")
         lbl_tbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         search_layout.addWidget(lbl_tbl_title)
         search_layout.addStretch()
 
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Search by name, department, code...")
+        self.search_entry.setPlaceholderText("Search faculty...")
         self.search_entry.setFixedWidth(260)
         self.search_entry.textChanged.connect(self.search_records)
         search_layout.addWidget(self.search_entry)
@@ -232,14 +213,13 @@ class FacultyWindow(QWidget):
 
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(9)
+        self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Faculty ID", "Name", "Department", "Email", "Phone", "Designation", "Max Hrs", "Status"
+            "ID", "Faculty ID", "Name", "Department", "Email", "Phone"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -259,12 +239,10 @@ class FacultyWindow(QWidget):
 
         for row_idx, rec in enumerate(records):
             self.table.insertRow(row_idx)
-            for col_idx in range(min(9, len(rec))):
+            for col_idx in range(min(6, len(rec))):
                 val = rec[col_idx]
-                if col_idx == 8:
-                    val = "Active" if val == 1 else "Inactive"
                 item = QTableWidgetItem(str(val) if val is not None else "")
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 7, 8] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 self.table.setItem(row_idx, col_idx, item)
 
     def on_table_select(self):
@@ -281,9 +259,6 @@ class FacultyWindow(QWidget):
             self.department_entry.setText(str(rec[3] or ""))
             self.email_entry.setText(str(rec[4] or ""))
             self.phone_entry.setText(str(rec[5] or ""))
-            self.designation_entry.setText(str(rec[6] or ""))
-            self.max_hours_entry.setText(str(rec[7] or "18"))
-            self.is_active_check.setChecked(bool(rec[8]))
 
     def clear_form(self):
         self.selected_id = None
@@ -292,9 +267,6 @@ class FacultyWindow(QWidget):
         self.department_entry.clear()
         self.email_entry.clear()
         self.phone_entry.clear()
-        self.designation_entry.clear()
-        self.max_hours_entry.setText("18")
-        self.is_active_check.setChecked(True)
         self.table.clearSelection()
 
     def validate_inputs(self):
@@ -302,7 +274,6 @@ class FacultyWindow(QWidget):
         dept = self.department_entry.text().strip()
         email = self.email_entry.text().strip()
         phone = self.phone_entry.text().strip()
-        max_hrs_str = self.max_hours_entry.text().strip()
 
         if not name:
             QMessageBox.warning(self, "Validation Error", "Faculty Name is required.")
@@ -324,39 +295,24 @@ class FacultyWindow(QWidget):
             self.phone_entry.setFocus()
             return False
 
-        try:
-            max_hrs = int(max_hrs_str)
-            if max_hrs < 1 or max_hrs > 50:
-                raise ValueError()
-        except ValueError:
-            QMessageBox.warning(self, "Validation Error", "Max Hours must be an integer between 1 and 50.")
-            self.max_hours_entry.setFocus()
-            return False
-
         return True
 
     def add_faculty_record(self):
         if not self.validate_inputs():
             return
 
-        fid = self.faculty_id_entry.text().strip() or None
+        fid = self.faculty_id_entry.text().strip()
         name = self.name_entry.text().strip()
         dept = self.department_entry.text().strip()
-        email = self.email_entry.text().strip() or None
-        phone = self.phone_entry.text().strip() or None
-        desig = self.designation_entry.text().strip() or None
-        max_hrs = int(self.max_hours_entry.text().strip())
-        is_active = 1 if self.is_active_check.isChecked() else 0
+        email = self.email_entry.text().strip()
+        phone = self.phone_entry.text().strip()
 
-        success, msg = add_faculty(
+        success = add_faculty(
             faculty_id=fid,
             name=name,
             department=dept,
             email=email,
-            phone=phone,
-            designation=desig,
-            max_hours_per_week=max_hrs,
-            is_active=is_active
+            phone=phone
         )
 
         if success:
@@ -364,7 +320,7 @@ class FacultyWindow(QWidget):
             self.clear_form()
             self.load_faculty()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to add faculty:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to add faculty. Faculty ID may already exist.")
 
     def update_faculty_record(self):
         if not self.selected_id:
@@ -374,25 +330,19 @@ class FacultyWindow(QWidget):
         if not self.validate_inputs():
             return
 
-        fid = self.faculty_id_entry.text().strip() or None
+        fid = self.faculty_id_entry.text().strip()
         name = self.name_entry.text().strip()
         dept = self.department_entry.text().strip()
-        email = self.email_entry.text().strip() or None
-        phone = self.phone_entry.text().strip() or None
-        desig = self.designation_entry.text().strip() or None
-        max_hrs = int(self.max_hours_entry.text().strip())
-        is_active = 1 if self.is_active_check.isChecked() else 0
+        email = self.email_entry.text().strip()
+        phone = self.phone_entry.text().strip()
 
-        success, msg = update_faculty(
-            faculty_db_id=self.selected_id,
+        success = update_faculty(
+            record_id=self.selected_id,
             faculty_id=fid,
             name=name,
             department=dept,
             email=email,
-            phone=phone,
-            designation=desig,
-            max_hours_per_week=max_hrs,
-            is_active=is_active
+            phone=phone
         )
 
         if success:
@@ -400,7 +350,7 @@ class FacultyWindow(QWidget):
             self.clear_form()
             self.load_faculty()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to update faculty:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to update faculty.")
 
     def delete_faculty_record(self):
         if not self.selected_id:

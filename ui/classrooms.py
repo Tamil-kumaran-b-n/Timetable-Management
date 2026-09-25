@@ -6,7 +6,7 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QGridLayout, QLabel, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QFrame, QScrollArea, QAbstractItemView
 )
@@ -29,8 +29,8 @@ class ClassroomsWindow(QWidget):
 
         if not self.embedded:
             self.setWindowTitle("Classroom Management - Smart Academic Timetable Management System")
-            self.resize(1150, 720)
-            self.setMinimumSize(1000, 650)
+            self.resize(1100, 700)
+            self.setMinimumSize(950, 600)
 
         self.setup_ui()
         self.load_classrooms()
@@ -67,9 +67,9 @@ class ClassroomsWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        lbl_title = QLabel("Classroom Management")
+        lbl_title = QLabel("Classrooms")
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        lbl_sub = QLabel("Add and manage lecture halls, laboratories, smart classrooms, and seating capacities")
+        lbl_sub = QLabel("Manage campus classrooms and lecture spaces")
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -87,54 +87,29 @@ class ClassroomsWindow(QWidget):
         form_layout.setContentsMargins(25, 20, 25, 25)
         form_layout.setSpacing(15)
 
-        form_title = QLabel("Classroom Details")
+        form_title = QLabel("Room Info")
         form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         form_layout.addWidget(form_title)
 
         grid = QGridLayout()
         grid.setSpacing(14)
         grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(2, 1)
+        grid.setColumnStretch(1, 2)
 
-        # Row 0: Room Number, Room Name, Building
-        lbl_rnum = QLabel("Room Number / Code *")
+        # Row 0: Room Number, Room Name
+        lbl_rnum = QLabel("Room Number *")
         lbl_rnum.setStyleSheet("font-weight: 600;")
         self.room_number_entry = QLineEdit()
-        self.room_number_entry.setPlaceholderText("e.g. LH-101 or LAB-02")
+        self.room_number_entry.setPlaceholderText("e.g. LH-101")
         grid.addWidget(lbl_rnum, 0, 0)
         grid.addWidget(self.room_number_entry, 1, 0)
 
         lbl_rname = QLabel("Room Name")
         lbl_rname.setStyleSheet("font-weight: 600;")
         self.room_name_entry = QLineEdit()
-        self.room_name_entry.setPlaceholderText("e.g. Turing Hall / AI Lab")
+        self.room_name_entry.setPlaceholderText("e.g. Main Hall / Lecture Room A")
         grid.addWidget(lbl_rname, 0, 1)
         grid.addWidget(self.room_name_entry, 1, 1)
-
-        lbl_bld = QLabel("Building / Floor")
-        lbl_bld.setStyleSheet("font-weight: 600;")
-        self.building_entry = QLineEdit()
-        self.building_entry.setPlaceholderText("e.g. Main Block, 1st Floor")
-        grid.addWidget(lbl_bld, 0, 2)
-        grid.addWidget(self.building_entry, 1, 2)
-
-        # Row 1: Capacity, Room Type
-        lbl_cap = QLabel("Seating Capacity *")
-        lbl_cap.setStyleSheet("font-weight: 600;")
-        self.capacity_entry = QLineEdit("60")
-        self.capacity_entry.setPlaceholderText("60")
-        grid.addWidget(lbl_cap, 2, 0)
-        grid.addWidget(self.capacity_entry, 3, 0)
-
-        lbl_rtype = QLabel("Room Type *")
-        lbl_rtype.setStyleSheet("font-weight: 600;")
-        self.room_type_combo = QComboBox()
-        self.room_type_combo.addItems([
-            "Lecture Hall", "Computer Lab", "Science Lab", "Seminar Room", "Smart Classroom", "Workshop"
-        ])
-        grid.addWidget(lbl_rtype, 2, 1)
-        grid.addWidget(self.room_type_combo, 3, 1)
 
         form_layout.addLayout(grid)
 
@@ -142,25 +117,25 @@ class ClassroomsWindow(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.btn_add = QPushButton("Add Classroom")
+        self.btn_add = QPushButton("Add")
         self.btn_add.setProperty("btnStyle", "success")
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self.add_classroom_record)
         btn_layout.addWidget(self.btn_add)
 
-        self.btn_update = QPushButton("Update Selected")
+        self.btn_update = QPushButton("Update")
         self.btn_update.setProperty("btnStyle", "secondary")
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_update.clicked.connect(self.update_classroom_record)
         btn_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete = QPushButton("Delete")
         self.btn_delete.setProperty("btnStyle", "danger")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_classroom_record)
         btn_layout.addWidget(self.btn_delete)
 
-        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.setProperty("btnStyle", "ghost")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_form)
@@ -183,13 +158,13 @@ class ClassroomsWindow(QWidget):
         search_layout = QHBoxLayout()
         search_layout.setSpacing(10)
 
-        lbl_tbl_title = QLabel("Available Classrooms & Facilities")
+        lbl_tbl_title = QLabel("Classrooms")
         lbl_tbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         search_layout.addWidget(lbl_tbl_title)
         search_layout.addStretch()
 
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Search room number, building, type...")
+        self.search_entry.setPlaceholderText("Search classrooms...")
         self.search_entry.setFixedWidth(260)
         self.search_entry.textChanged.connect(self.search_records)
         search_layout.addWidget(self.search_entry)
@@ -204,14 +179,13 @@ class ClassroomsWindow(QWidget):
 
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Room Number", "Room Name", "Building / Floor", "Capacity", "Room Type"
+            "ID", "Room Number", "Room Name"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -231,10 +205,10 @@ class ClassroomsWindow(QWidget):
 
         for row_idx, rec in enumerate(records):
             self.table.insertRow(row_idx)
-            for col_idx in range(min(6, len(rec))):
+            for col_idx in range(min(3, len(rec))):
                 val = rec[col_idx]
                 item = QTableWidgetItem(str(val) if val is not None else "")
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 4] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 self.table.setItem(row_idx, col_idx, item)
 
     def on_table_select(self):
@@ -248,36 +222,19 @@ class ClassroomsWindow(QWidget):
             self.selected_id = rec[0]
             self.room_number_entry.setText(str(rec[1] or ""))
             self.room_name_entry.setText(str(rec[2] or ""))
-            self.building_entry.setText(str(rec[3] or ""))
-            self.capacity_entry.setText(str(rec[4] or "60"))
-            if len(rec) > 5 and rec[5]:
-                self.room_type_combo.setCurrentText(str(rec[5]))
 
     def clear_form(self):
         self.selected_id = None
         self.room_number_entry.clear()
         self.room_name_entry.clear()
-        self.building_entry.clear()
-        self.capacity_entry.setText("60")
-        self.room_type_combo.setCurrentIndex(0)
         self.table.clearSelection()
 
     def validate_inputs(self):
         rnum = self.room_number_entry.text().strip()
-        cap_str = self.capacity_entry.text().strip()
 
         if not rnum:
             QMessageBox.warning(self, "Validation Error", "Room Number is required.")
             self.room_number_entry.setFocus()
-            return False
-
-        try:
-            cap = int(cap_str)
-            if cap < 1 or cap > 1000:
-                raise ValueError()
-        except ValueError:
-            QMessageBox.warning(self, "Validation Error", "Capacity must be an integer between 1 and 1000.")
-            self.capacity_entry.setFocus()
             return False
 
         return True
@@ -287,17 +244,14 @@ class ClassroomsWindow(QWidget):
             return
 
         rnum = self.room_number_entry.text().strip()
-        rname = self.room_name_entry.text().strip() or None
-        bld = self.building_entry.text().strip() or None
-        cap = int(self.capacity_entry.text().strip())
-        rtype = self.room_type_combo.currentText()
+        rname = self.room_name_entry.text().strip() or ""
 
-        success, msg = add_classroom(
+        success = add_classroom(
             room_number=rnum,
             room_name=rname,
-            building=bld,
-            capacity=cap,
-            room_type=rtype
+            building="",
+            room_type="",
+            capacity=0
         )
 
         if success:
@@ -305,7 +259,7 @@ class ClassroomsWindow(QWidget):
             self.clear_form()
             self.load_classrooms()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to add classroom:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to add classroom. Room number already exists.")
 
     def update_classroom_record(self):
         if not self.selected_id:
@@ -316,18 +270,15 @@ class ClassroomsWindow(QWidget):
             return
 
         rnum = self.room_number_entry.text().strip()
-        rname = self.room_name_entry.text().strip() or None
-        bld = self.building_entry.text().strip() or None
-        cap = int(self.capacity_entry.text().strip())
-        rtype = self.room_type_combo.currentText()
+        rname = self.room_name_entry.text().strip() or ""
 
-        success, msg = update_classroom(
-            classroom_db_id=self.selected_id,
+        success = update_classroom(
+            record_id=self.selected_id,
             room_number=rnum,
             room_name=rname,
-            building=bld,
-            capacity=cap,
-            room_type=rtype
+            building="",
+            room_type="",
+            capacity=0
         )
 
         if success:
@@ -335,7 +286,7 @@ class ClassroomsWindow(QWidget):
             self.clear_form()
             self.load_classrooms()
         else:
-            QMessageBox.critical(self, "Error", f"Failed to update classroom:\n{msg}")
+            QMessageBox.critical(self, "Error", "Failed to update classroom.")
 
     def delete_classroom_record(self):
         if not self.selected_id:
@@ -350,13 +301,13 @@ class ClassroomsWindow(QWidget):
         )
 
         if confirm == QMessageBox.StandardButton.Yes:
-            success, msg = delete_classroom(self.selected_id)
-            if success:
+            try:
+                delete_classroom(self.selected_id)
                 QMessageBox.information(self, "Deleted", "Classroom deleted successfully.")
                 self.clear_form()
                 self.load_classrooms()
-            else:
-                QMessageBox.critical(self, "Error", f"Failed to delete classroom:\n{msg}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete classroom:\n{str(e)}")
 
     def search_records(self, text):
         query = text.strip()

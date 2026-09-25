@@ -76,14 +76,14 @@ class Dashboard(QMainWindow):
         is_admin = (self.current_user.get("role") in ["Administrator", "Admin", "admin"])
 
         # Title
-        app_title = QLabel("SMART\nTIMETABLE" if is_admin else "FACULTY\nPORTAL")
+        app_title = QLabel("TIMETABLE" if is_admin else "FACULTY")
         app_title.setObjectName("Heading")
         app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(app_title)
 
         sidebar_layout.addSpacing(10)
 
-        nav_header = QLabel("MAIN MENU" if is_admin else "FACULTY MENU")
+        nav_header = QLabel("MENU")
         nav_header.setObjectName("Secondary")
         sidebar_layout.addWidget(nav_header)
 
@@ -94,10 +94,10 @@ class Dashboard(QMainWindow):
             self.nav_buttons["faculty"] = self.create_nav_button("Faculty", lambda: self.show_page("faculty"), sidebar_layout)
             self.nav_buttons["subjects"] = self.create_nav_button("Subjects", lambda: self.show_page("subjects"), sidebar_layout)
             self.nav_buttons["classrooms"] = self.create_nav_button("Classrooms", lambda: self.show_page("classrooms"), sidebar_layout)
-            self.nav_buttons["classes"] = self.create_nav_button("Classes & Semesters", lambda: self.show_page("classes"), sidebar_layout)
-            self.nav_buttons["assignments"] = self.create_nav_button("Faculty Workload", lambda: self.show_page("assignments"), sidebar_layout)
-            self.nav_buttons["generate"] = self.create_nav_button("Generate Timetable", lambda: self.show_page("generate"), sidebar_layout)
-            self.nav_buttons["view_timetable"] = self.create_nav_button("View Timetable", lambda: self.show_page("view_timetable"), sidebar_layout)
+            self.nav_buttons["classes"] = self.create_nav_button("Classes", lambda: self.show_page("classes"), sidebar_layout)
+            self.nav_buttons["assignments"] = self.create_nav_button("Workload", lambda: self.show_page("assignments"), sidebar_layout)
+            self.nav_buttons["generate"] = self.create_nav_button("Generate", lambda: self.show_page("generate"), sidebar_layout)
+            self.nav_buttons["view_timetable"] = self.create_nav_button("Timetable", lambda: self.show_page("view_timetable"), sidebar_layout)
         else:
             self.nav_buttons["view_timetable"] = self.create_nav_button("My Timetable", lambda: self.show_page("view_timetable"), sidebar_layout)
 
@@ -132,17 +132,17 @@ class Dashboard(QMainWindow):
         top_bar_layout.setContentsMargins(25, 10, 30, 10)
 
         # Back & Forward buttons
-        self.btn_back = QPushButton("←")
-        self.btn_back.setProperty("btnStyle", "secondary")
-        self.btn_back.setFixedSize(36, 34)
+        self.btn_back = QPushButton("\u2190")
+        self.btn_back.setObjectName("NavArrow")
+        self.btn_back.setProperty("btnStyle", "icon")
         self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_back.setEnabled(False)
         self.btn_back.clicked.connect(self.go_back)
         top_bar_layout.addWidget(self.btn_back)
 
-        self.btn_forward = QPushButton("→")
-        self.btn_forward.setProperty("btnStyle", "secondary")
-        self.btn_forward.setFixedSize(36, 34)
+        self.btn_forward = QPushButton("\u2192")
+        self.btn_forward.setObjectName("NavArrow")
+        self.btn_forward.setProperty("btnStyle", "icon")
         self.btn_forward.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_forward.setEnabled(False)
         self.btn_forward.clicked.connect(self.go_forward)
@@ -151,7 +151,7 @@ class Dashboard(QMainWindow):
         top_bar_layout.addSpacing(15)
 
         # Page Title
-        self.lbl_page_title = QLabel("Homepage")
+        self.lbl_page_title = QLabel("Home")
         self.lbl_page_title.setObjectName("Heading")
         top_bar_layout.addWidget(self.lbl_page_title)
 
@@ -203,17 +203,17 @@ class Dashboard(QMainWindow):
                 self.history_index += 1
 
         titles = {
-            "home": "Homepage",
-            "faculty": "Faculty Management",
-            "subjects": "Subject Management",
-            "classrooms": "Classroom Management",
-            "classes": "Classes & Semesters",
-            "assignments": "Faculty Workload Management",
-            "generate": "Generate Timetable",
-            "view_timetable": "View Timetable",
-            "settings": "System & Application Settings",
+            "home": "Home",
+            "faculty": "Faculty",
+            "subjects": "Subjects",
+            "classrooms": "Classrooms",
+            "classes": "Classes",
+            "assignments": "Workload",
+            "generate": "Generate",
+            "view_timetable": "Timetable",
+            "settings": "Settings",
         }
-        self.lbl_page_title.setText(titles.get(page, "Homepage"))
+        self.lbl_page_title.setText(titles.get(page, "Home"))
         self.update_nav_active(page)
 
         # Clear existing page inside page_container and construct new widget
@@ -284,9 +284,9 @@ class Dashboard(QMainWindow):
         banner_layout.setContentsMargins(25, 20, 25, 20)
         banner_layout.setSpacing(4)
 
-        lbl_greet = QLabel("Good Day")
+        lbl_greet = QLabel("Welcome")
         lbl_greet.setObjectName("Heading")
-        lbl_sub = QLabel("Manage your college academic timetable and schedules efficiently from one central dashboard.")
+        lbl_sub = QLabel("Manage your college timetable and academic resources.")
         lbl_sub.setObjectName("Secondary")
 
         banner_layout.addWidget(lbl_greet)
@@ -303,20 +303,20 @@ class Dashboard(QMainWindow):
 
         qa_layout.addWidget(self.create_action_card(
             "Generate Timetable",
-            "Automatically solve and generate a conflict-free schedule.",
+            "Create conflict-free class timetables.",
             "Generate",
             lambda: self.show_page("generate")
         ))
         qa_layout.addWidget(self.create_action_card(
-            "Manage Faculty",
-            "Add faculty profiles, qualifications, and max hours.",
             "Faculty",
+            "Manage faculty members and hours.",
+            "Open",
             lambda: self.show_page("faculty")
         ))
         qa_layout.addWidget(self.create_action_card(
-            "Manage Subjects",
-            "Create curriculum subjects, credits, and lab requirements.",
             "Subjects",
+            "Manage subjects, credits, and labs.",
+            "Open",
             lambda: self.show_page("subjects")
         ))
 
@@ -324,12 +324,12 @@ class Dashboard(QMainWindow):
 
         # Academic Overview Stats
         stats_header_layout = QHBoxLayout()
-        lbl_stats = QLabel("Academic Overview")
+        lbl_stats = QLabel("Overview")
         lbl_stats.setObjectName("SectionTitle")
         stats_header_layout.addWidget(lbl_stats)
         stats_header_layout.addStretch()
 
-        btn_refresh = QPushButton("Refresh Overview")
+        btn_refresh = QPushButton("Refresh")
         btn_refresh.setProperty("btnStyle", "secondary")
         btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_refresh.clicked.connect(self.refresh_stats)
@@ -343,10 +343,10 @@ class Dashboard(QMainWindow):
         stats_grid.setColumnStretch(2, 1)
         stats_grid.setColumnStretch(3, 1)
 
-        self.stat_labels["faculty"] = self.create_stat_card("Faculty Members", "0", 0, 0, stats_grid)
-        self.stat_labels["subjects"] = self.create_stat_card("Curriculum Subjects", "0", 0, 1, stats_grid)
-        self.stat_labels["classrooms"] = self.create_stat_card("Available Classrooms", "0", 0, 2, stats_grid)
-        self.stat_labels["timetables"] = self.create_stat_card("Active Timetable Slots", "0", 0, 3, stats_grid)
+        self.stat_labels["faculty"] = self.create_stat_card("Faculty", "0", 0, 0, stats_grid)
+        self.stat_labels["subjects"] = self.create_stat_card("Subjects", "0", 0, 1, stats_grid)
+        self.stat_labels["classrooms"] = self.create_stat_card("Classrooms", "0", 0, 2, stats_grid)
+        self.stat_labels["timetables"] = self.create_stat_card("Slots", "0", 0, 3, stats_grid)
 
         layout.addLayout(stats_grid)
 
@@ -357,11 +357,11 @@ class Dashboard(QMainWindow):
         recent_layout.setContentsMargins(25, 20, 25, 20)
         recent_layout.setSpacing(8)
 
-        lbl_rec_title = QLabel("System Timetable Status")
+        lbl_rec_title = QLabel("Timetable Status")
         lbl_rec_title.setObjectName("Subheading")
         recent_layout.addWidget(lbl_rec_title)
 
-        self.lbl_recent_status = QLabel("Loading timetable status...")
+        self.lbl_recent_status = QLabel("Checking timetable status...")
         self.lbl_recent_status.setObjectName("NoticeText")
         recent_layout.addWidget(self.lbl_recent_status)
 
@@ -442,9 +442,9 @@ class Dashboard(QMainWindow):
 
         if hasattr(self, "lbl_recent_status"):
             if t_count > 0:
-                self.lbl_recent_status.setText(f"{t_count} scheduled timetable slots are currently active in the database. You can view, filter, and export the timetable from the View Timetable section.")
+                self.lbl_recent_status.setText(f"{t_count} slots scheduled. View or export from the Timetable page.")
             else:
-                self.lbl_recent_status.setText("No timetables generated yet. Go to Generate Timetable to create full college schedules.")
+                self.lbl_recent_status.setText("No timetables generated yet.")
 
     def build_faculty_home(self):
         scroll = QScrollArea()
@@ -468,7 +468,7 @@ class Dashboard(QMainWindow):
 
         t = QLabel(f"Welcome, {display_name}")
         t.setObjectName("Heading")
-        sub = QLabel("Faculty Academic Portal • View your allocated classes, lecture slots, and teaching schedules.")
+        sub = QLabel("View your weekly teaching schedule and classes.")
         sub.setObjectName("Secondary")
 
         b_layout.addWidget(t)
@@ -482,12 +482,12 @@ class Dashboard(QMainWindow):
         tt_layout.setContentsMargins(25, 20, 25, 20)
         tt_layout.setSpacing(12)
 
-        tt_title = QLabel("My Weekly Teaching Schedule")
+        tt_title = QLabel("My Schedule")
         tt_title.setObjectName("Subheading")
-        tt_desc = QLabel("Access your weekly lecture schedule with subject codes, allocated classrooms, and time slots.")
+        tt_desc = QLabel("View your subjects, rooms, and class times.")
         tt_desc.setObjectName("Secondary")
 
-        btn_open = QPushButton("Open My Timetable")
+        btn_open = QPushButton("View Schedule")
         btn_open.setProperty("btnStyle", "primary")
         btn_open.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_open.setMinimumHeight(40)
@@ -505,12 +505,12 @@ class Dashboard(QMainWindow):
         g_layout.setContentsMargins(25, 20, 25, 20)
         g_layout.setSpacing(10)
 
-        g_title = QLabel("Faculty Guidelines & Notice")
+        g_title = QLabel("Notice")
         g_title.setObjectName("Subheading")
         g_text = QLabel(
-            "• Timetables are generated and managed centrally by the Academic Administrator.\n"
-            "• You can download and print a structured PDF of your weekly schedule directly from the timetable page.\n"
-            "• For schedule adjustments, subject changes, or classroom reassignment, please contact the Administrator."
+            "• Timetables are managed by the administrator.\n"
+            "• Download or print PDF copies from the timetable page.\n"
+            "• Contact admin for schedule changes."
         )
         g_text.setObjectName("NoticeText")
 
@@ -543,9 +543,9 @@ class Dashboard(QMainWindow):
         theme_layout.setContentsMargins(25, 20, 25, 20)
         theme_layout.setSpacing(12)
 
-        lbl_t = QLabel("Theme & Appearance (Dark / Light Mode)")
+        lbl_t = QLabel("Theme")
         lbl_t.setObjectName("Subheading")
-        lbl_ts = QLabel("Switch between Light, Dark, or System mode across the entire application instantly.")
+        lbl_ts = QLabel("Choose your preferred theme.")
         lbl_ts.setObjectName("Secondary")
 
         theme_layout.addWidget(lbl_t)
@@ -573,9 +573,9 @@ class Dashboard(QMainWindow):
         scale_layout.setContentsMargins(25, 20, 25, 20)
         scale_layout.setSpacing(12)
 
-        lbl_s = QLabel("Text Size & Interface Scaling")
+        lbl_s = QLabel("Text Size")
         lbl_s.setObjectName("Subheading")
-        lbl_ss = QLabel("Adjust text and element sizes program-wide for comfortable viewing.")
+        lbl_ss = QLabel("Adjust interface text scaling.")
         lbl_ss.setObjectName("Secondary")
 
         scale_layout.addWidget(lbl_s)
@@ -603,16 +603,16 @@ class Dashboard(QMainWindow):
         acc_layout.setContentsMargins(25, 20, 25, 20)
         acc_layout.setSpacing(12)
 
-        lbl_a = QLabel("User Account & Security")
+        lbl_a = QLabel("Account")
         lbl_a.setObjectName("Subheading")
         acc_layout.addWidget(lbl_a)
 
         display_name = self.current_user.get("full_name") or self.current_user.get("username", "Administrator")
-        info_text = QLabel(f"• Active Account: {display_name} ({self.current_user.get('role', 'Faculty')})\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)")
+        info_text = QLabel(f"Signed in as {display_name} ({self.current_user.get('role', 'Faculty')})")
         info_text.setObjectName("NoticeText")
         acc_layout.addWidget(info_text)
 
-        btn_logout = QPushButton("Log Out of Account")
+        btn_logout = QPushButton("Log Out")
         btn_logout.setProperty("btnStyle", "danger")
         btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_logout.setMinimumHeight(38)
@@ -637,8 +637,8 @@ class Dashboard(QMainWindow):
     def confirm_logout(self):
         confirm = QMessageBox.question(
             self,
-            "Logout Confirmation",
-            "Are you sure you want to log out of your session?",
+            "Log Out",
+            "Are you sure you want to log out?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if confirm == QMessageBox.StandardButton.Yes:

@@ -51,13 +51,13 @@ class LoginWindow(QMainWindow):
         main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Main title
-        self.title_label = QLabel("Smart Academic Timetable Management System")
+        self.title_label = QLabel("Timetable System")
         self.title_label.setObjectName("Heading")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(self.title_label)
 
         # Subtitle
-        self.subtitle_label = QLabel("College Academic Management Portal")
+        self.subtitle_label = QLabel("Sign in to continue")
         self.subtitle_label.setObjectName("Secondary")
         self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(self.subtitle_label)
@@ -72,7 +72,7 @@ class LoginWindow(QMainWindow):
         self.card_layout.setContentsMargins(35, 25, 35, 30)
         self.card_layout.setSpacing(14)
 
-        # Segmented buttons (Sign In / Faculty Registration)
+        # Segmented buttons (Sign In / Register)
         mode_btn_layout = QHBoxLayout()
         mode_btn_layout.setSpacing(8)
 
@@ -80,7 +80,7 @@ class LoginWindow(QMainWindow):
         self.btn_mode_login.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_mode_login.clicked.connect(self.show_login_form)
 
-        self.btn_mode_register = QPushButton("Faculty Registration")
+        self.btn_mode_register = QPushButton("Register")
         self.btn_mode_register.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_mode_register.clicked.connect(self.show_register_form)
 
@@ -98,7 +98,7 @@ class LoginWindow(QMainWindow):
         main_layout.addWidget(self.card, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Footer
-        footer = QLabel("Smart Academic Timetable Management System • Secured with Salted PBKDF2 Encryption")
+        footer = QLabel("Timetable Management System")
         footer.setObjectName("Secondary")
         footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(footer)
@@ -132,17 +132,17 @@ class LoginWindow(QMainWindow):
         self.clear_form()
 
         # Login heading
-        title = QLabel("Sign In to Portal")
+        title = QLabel("Sign In")
         title.setObjectName("Subheading")
         self.form_layout.addWidget(title)
 
         # Username
-        lbl_user = QLabel("Account Name (Username)")
+        lbl_user = QLabel("Username")
         lbl_user.setObjectName("FormLabel")
         self.form_layout.addWidget(lbl_user)
 
         self.username_entry = QLineEdit()
-        self.username_entry.setPlaceholderText("e.g. admin or faculty_username")
+        self.username_entry.setPlaceholderText("Enter username")
         self.username_entry.returnPressed.connect(self.login)
         self.form_layout.addWidget(self.username_entry)
 
@@ -153,7 +153,7 @@ class LoginWindow(QMainWindow):
 
         self.password_entry = QLineEdit()
         self.password_entry.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_entry.setPlaceholderText("Enter your password")
+        self.password_entry.setPlaceholderText("Enter password")
         self.password_entry.returnPressed.connect(self.login)
         self.form_layout.addWidget(self.password_entry)
 
@@ -174,7 +174,7 @@ class LoginWindow(QMainWindow):
         self.form_layout.addWidget(submit_btn)
 
         # Switch link button
-        switch_btn = QPushButton("New faculty member? Register here")
+        switch_btn = QPushButton("New faculty? Register here")
         switch_btn.setProperty("btnStyle", "ghost")
         switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         switch_btn.clicked.connect(self.show_register_form)
@@ -194,30 +194,30 @@ class LoginWindow(QMainWindow):
             self.subjects_data = []
 
         # Heading
-        title = QLabel("Register Faculty Account")
+        title = QLabel("Register Faculty")
         title.setObjectName("Subheading")
         self.form_layout.addWidget(title)
 
         # Username / Account ID
-        lbl_user = QLabel("Username / Account ID")
+        lbl_user = QLabel("Username")
         lbl_user.setObjectName("FormLabel")
         self.form_layout.addWidget(lbl_user)
 
         self.reg_username_entry = QLineEdit()
-        self.reg_username_entry.setPlaceholderText("e.g. john_doe (min 3 chars)")
+        self.reg_username_entry.setPlaceholderText("Username (min 3 chars)")
         self.form_layout.addWidget(self.reg_username_entry)
 
         # Faculty Full Name
-        lbl_name = QLabel("Faculty Full Name")
+        lbl_name = QLabel("Full Name")
         lbl_name.setObjectName("FormLabel")
         self.form_layout.addWidget(lbl_name)
 
         self.reg_fullname_entry = QLineEdit()
-        self.reg_fullname_entry.setPlaceholderText("e.g. Dr. John Doe")
+        self.reg_fullname_entry.setPlaceholderText("Full name")
         self.form_layout.addWidget(self.reg_fullname_entry)
 
         # Primary Teaching Subject
-        lbl_sub = QLabel("Primary Teaching Subject")
+        lbl_sub = QLabel("Subject")
         lbl_sub.setObjectName("FormLabel")
         self.form_layout.addWidget(lbl_sub)
 
@@ -229,7 +229,7 @@ class LoginWindow(QMainWindow):
                 dept = s[3] if len(s) > 3 else ""
                 self.reg_subject_combo.addItem(f"{code} - {sname} ({dept})", s)
         else:
-            self.reg_subject_combo.addItem("General (No subjects in database)")
+            self.reg_subject_combo.addItem("General")
         self.form_layout.addWidget(self.reg_subject_combo)
 
         # Password
@@ -259,7 +259,7 @@ class LoginWindow(QMainWindow):
         self.form_layout.addWidget(self.reg_show_pwd_check)
 
         # Register button
-        submit_btn = QPushButton("Create Faculty Account & Sign In")
+        submit_btn = QPushButton("Register & Sign In")
         submit_btn.setProperty("btnStyle", "success")
         submit_btn.setMinimumHeight(38)
         submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -267,7 +267,7 @@ class LoginWindow(QMainWindow):
         self.form_layout.addWidget(submit_btn)
 
         # Switch link button
-        switch_btn = QPushButton("Already have an account? Sign In")
+        switch_btn = QPushButton("Already have an account? Sign in")
         switch_btn.setProperty("btnStyle", "ghost")
         switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         switch_btn.clicked.connect(self.show_login_form)
@@ -285,17 +285,16 @@ class LoginWindow(QMainWindow):
         password = self.password_entry.text()
 
         if not username or not password:
-            QMessageBox.warning(self, "Login", "Please enter both username and password.")
+            QMessageBox.warning(self, "Login", "Please enter username and password.")
             return
 
         user = authenticate_user(username, password)
         if user:
-            role = user.get("role", "Faculty")
             display_name = user.get("full_name") or user.get("username", "User")
             QMessageBox.information(
                 self,
-                "Login Successful",
-                f"Welcome, {display_name}!\n\nLogged in as {role}."
+                "Success",
+                f"Welcome, {display_name}!"
             )
 
             if self.on_login_success:

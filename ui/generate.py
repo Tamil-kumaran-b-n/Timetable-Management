@@ -69,14 +69,14 @@ class GenerateTimetableWindow(QWidget):
         title_box.setSpacing(4)
         lbl_title = QLabel("Generate Timetable")
         lbl_title.setObjectName("Heading")
-        lbl_sub = QLabel("Generate an optimized, balanced, conflict-free schedule across all classes or for a single class")
+        lbl_sub = QLabel("Create timetables for all classes or a selected class")
         lbl_sub.setObjectName("Secondary")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
         header_layout.addLayout(title_box)
         header_layout.addStretch()
 
-        self.btn_view_tt = QPushButton("View Generated Timetable")
+        self.btn_view_tt = QPushButton("View Timetable")
         self.btn_view_tt.setProperty("btnStyle", "secondary")
         self.btn_view_tt.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_view_tt.clicked.connect(self.go_to_view_timetable)
@@ -93,23 +93,23 @@ class GenerateTimetableWindow(QWidget):
         scope_layout.setContentsMargins(25, 20, 25, 25)
         scope_layout.setSpacing(14)
 
-        lbl_scope_title = QLabel("1. Generation Scope & Strategy")
+        lbl_scope_title = QLabel("1. Scope & Mode")
         lbl_scope_title.setObjectName("Subheading")
         scope_layout.addWidget(lbl_scope_title)
 
         # Scope Options
-        lbl_scope_type = QLabel("Generation Scope:")
+        lbl_scope_type = QLabel("Scope:")
         lbl_scope_type.setObjectName("FormLabel")
         scope_layout.addWidget(lbl_scope_type)
 
         scope_opts_layout = QHBoxLayout()
         scope_opts_layout.setSpacing(25)
 
-        self.radio_all = QRadioButton("All Classes (Complete College Schedule)")
+        self.radio_all = QRadioButton("All Classes")
         self.radio_all.setChecked(True)
         self.radio_all.toggled.connect(self.on_scope_changed)
 
-        self.radio_single = QRadioButton("Single Class (Selective Generation)")
+        self.radio_single = QRadioButton("Single Class")
         self.radio_single.toggled.connect(self.on_scope_changed)
 
         self.scope_group = QButtonGroup(self)
@@ -125,7 +125,7 @@ class GenerateTimetableWindow(QWidget):
         self.class_select_container = QWidget()
         cls_sel_layout = QHBoxLayout(self.class_select_container)
         cls_sel_layout.setContentsMargins(0, 0, 0, 0)
-        lbl_tgt = QLabel("Select Target Class:")
+        lbl_tgt = QLabel("Class:")
         lbl_tgt.setObjectName("FormLabel")
         cls_sel_layout.addWidget(lbl_tgt)
         self.class_combo = QComboBox()
@@ -137,17 +137,17 @@ class GenerateTimetableWindow(QWidget):
         scope_layout.addWidget(self.class_select_container)
 
         # Strategy Options (Efficient vs Random)
-        lbl_mode_type = QLabel("Optimization Mode:")
+        lbl_mode_type = QLabel("Mode:")
         lbl_mode_type.setObjectName("FormLabel")
         scope_layout.addWidget(lbl_mode_type)
 
         mode_opts_layout = QHBoxLayout()
         mode_opts_layout.setSpacing(25)
 
-        self.radio_efficient = QRadioButton("Efficient / Balanced (Optimized Spacing & Prime Morning Slots)")
+        self.radio_efficient = QRadioButton("Efficient (Balanced)")
         self.radio_efficient.setChecked(True)
 
-        self.radio_random = QRadioButton("Randomized (Alternative Shuffled Combination)")
+        self.radio_random = QRadioButton("Random")
 
         self.mode_group = QButtonGroup(self)
         self.mode_group.addButton(self.radio_efficient)
@@ -169,7 +169,7 @@ class GenerateTimetableWindow(QWidget):
         stats_layout.setContentsMargins(25, 20, 25, 25)
         stats_layout.setSpacing(15)
 
-        lbl_stats_title = QLabel("2. Workload & Curriculum Readiness")
+        lbl_stats_title = QLabel("2. Workloads")
         lbl_stats_title.setObjectName("Subheading")
         stats_layout.addWidget(lbl_stats_title)
 
@@ -179,14 +179,14 @@ class GenerateTimetableWindow(QWidget):
         grid_stats.setColumnStretch(1, 1)
         grid_stats.setColumnStretch(2, 1)
 
-        self.stat_workloads = self.create_metric_card("Total Workloads", "0", 0, 0, grid_stats)
-        self.stat_generated = self.create_metric_card("Total Timetables Generated", "0", 0, 1, grid_stats)
-        self.stat_periods = self.create_metric_card("Total Teaching Periods", "0", 0, 2, grid_stats)
+        self.stat_workloads = self.create_metric_card("Workloads", "0", 0, 0, grid_stats)
+        self.stat_generated = self.create_metric_card("Generated", "0", 0, 1, grid_stats)
+        self.stat_periods = self.create_metric_card("Periods", "0", 0, 2, grid_stats)
 
         stats_layout.addLayout(grid_stats)
 
         # Status indicator text
-        self.status_label = QLabel("Analyzing workload allocations...")
+        self.status_label = QLabel("Checking workloads...")
         self.status_label.setObjectName("NoticeText")
         self.status_label.setStyleSheet("font-weight: 600; margin-top: 5px;")
         stats_layout.addWidget(self.status_label)
@@ -202,7 +202,7 @@ class GenerateTimetableWindow(QWidget):
         exec_layout.setContentsMargins(25, 20, 25, 25)
         exec_layout.setSpacing(15)
 
-        lbl_exec_title = QLabel("3. Algorithm Execution & Progress")
+        lbl_exec_title = QLabel("3. Generate")
         lbl_exec_title.setObjectName("Subheading")
         exec_layout.addWidget(lbl_exec_title)
 
@@ -216,14 +216,14 @@ class GenerateTimetableWindow(QWidget):
         btn_action_layout = QHBoxLayout()
         btn_action_layout.setSpacing(12)
 
-        self.btn_generate = QPushButton("Start Timetable Generation")
+        self.btn_generate = QPushButton("Generate")
         self.btn_generate.setProperty("btnStyle", "primary")
         self.btn_generate.setMinimumHeight(42)
         self.btn_generate.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate.clicked.connect(self.generate)
         btn_action_layout.addWidget(self.btn_generate)
 
-        self.btn_refresh = QPushButton("Refresh Workloads")
+        self.btn_refresh = QPushButton("Refresh")
         self.btn_refresh.setProperty("btnStyle", "secondary")
         self.btn_refresh.setMinimumHeight(42)
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -304,14 +304,14 @@ class GenerateTimetableWindow(QWidget):
 
             scope_desc = "for selected class" if self.selected_class_id else "across all classes"
             if total == 0:
-                self.status_label.setText(f"No workloads found {scope_desc}. Please allocate workloads before generating.")
+                self.status_label.setText(f"No workloads found {scope_desc}. Please add workloads first.")
                 self.btn_generate.setEnabled(False)
             else:
-                self.status_label.setText(f"{total} workload assignment(s) verified {scope_desc} ({total_periods} teaching periods to schedule). Ready to generate.")
+                self.status_label.setText(f"{total} workload(s) ready ({total_periods} periods).")
                 self.btn_generate.setEnabled(True)
 
         except Exception as error:
-            self.status_label.setText(f"Unable to load workload information: {error}")
+            self.status_label.setText(f"Error loading workloads: {error}")
             self.btn_generate.setEnabled(False)
 
     def load_data(self):
@@ -326,19 +326,19 @@ class GenerateTimetableWindow(QWidget):
             QMessageBox.warning(
                 self,
                 "No Workload",
-                "No faculty workload is available for the selected scope.\n\nPlease assign workload first."
+                "No workload found. Please assign workload first."
             )
             return
 
         scope_msg = (
-            "Regenerate timetable for only the selected class?\n\nExisting schedules of all other classes will remain preserved."
+            "Regenerate timetable for this class?"
             if self.selected_class_id is not None
-            else "Generate a new timetable for ALL classes?\n\nAll existing timetable entries will be replaced."
+            else "Generate timetable for ALL classes?\n\nExisting timetables will be replaced."
         )
 
         confirm = QMessageBox.question(
             self,
-            "Confirm Generation",
+            "Confirm",
             scope_msg,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
@@ -347,9 +347,9 @@ class GenerateTimetableWindow(QWidget):
             return
 
         self.btn_generate.setEnabled(False)
-        self.btn_generate.setText("Generating Timetable...")
+        self.btn_generate.setText("Generating...")
         self.btn_refresh.setEnabled(False)
-        self.status_label.setText("Solving schedule constraints and placing conflict-free slots...")
+        self.status_label.setText("Generating timetable...")
         self.progress_bar.setValue(35)
         QApplication.processEvents()
 
@@ -358,40 +358,40 @@ class GenerateTimetableWindow(QWidget):
             QApplication.processEvents()
 
             mode = "random" if self.radio_random.isChecked() else "efficient"
-            mode_desc = "Randomized" if mode == "random" else "Efficient"
-            self.status_label.setText(f"Solving schedule constraints ({mode_desc} mode)...")
+            mode_desc = "Random" if mode == "random" else "Efficient"
+            self.status_label.setText(f"Generating ({mode_desc} mode)...")
 
             result = generate_timetable(target_class_id=self.selected_class_id, mode=mode)
 
             if result:
                 timetable = get_all_timetable() or []
                 self.progress_bar.setValue(100)
-                self.status_label.setText(f"Timetable generated successfully ({mode_desc} mode)! {len(timetable)} total active slots.")
+                self.status_label.setText(f"Done! {len(timetable)} slots scheduled.")
 
                 succ_msg = (
-                    f"Timetable generated successfully for selected class ({mode_desc} mode)!\n\nNo clashes with existing classes."
+                    f"Timetable generated ({mode_desc} mode)."
                     if self.selected_class_id is not None
-                    else f"Complete college timetable generated successfully ({mode_desc} mode)!\n\nTotal slots created: {len(timetable)}"
+                    else f"All timetables generated ({mode_desc} mode).\n\nTotal slots: {len(timetable)}"
                 )
 
                 self.load_workload_summary()
-                QMessageBox.information(self, "Generation Complete", succ_msg)
+                QMessageBox.information(self, "Success", succ_msg)
             else:
                 self.progress_bar.setValue(0)
-                self.status_label.setText("Timetable generation failed to solve all constraints.")
-                QMessageBox.critical(self, "Generation Failed", "Could not satisfy all constraints. Please verify faculty workload capacity.")
+                self.status_label.setText("Generation failed.")
+                QMessageBox.critical(self, "Failed", "Could not generate timetable. Please check workload constraints.")
 
         except ValueError as error:
             self.progress_bar.setValue(0)
-            self.status_label.setText("Timetable generation failed.")
-            QMessageBox.critical(self, "Generation Failed", f"Generation Error:\n{error}")
+            self.status_label.setText("Generation error.")
+            QMessageBox.critical(self, "Error", f"{error}")
         except Exception as error:
             self.progress_bar.setValue(0)
-            self.status_label.setText("Unexpected error occurred.")
-            QMessageBox.critical(self, "Generation Error", f"An unexpected error occurred:\n{error}")
+            self.status_label.setText("Unexpected error.")
+            QMessageBox.critical(self, "Error", f"{error}")
         finally:
             self.btn_generate.setEnabled(True)
-            self.btn_generate.setText("Start Timetable Generation")
+            self.btn_generate.setText("Generate")
             self.btn_refresh.setEnabled(True)
 
     def go_to_view_timetable(self):

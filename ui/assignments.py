@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QFrame, QScrollArea, QAbstractItemView, QProgressBar
+    QFrame, QScrollArea, QAbstractItemView
 )
 
 from database.database import (
@@ -38,8 +38,8 @@ class AssignmentsWindow(QWidget):
 
         if not self.embedded:
             self.setWindowTitle("Faculty Workload Management - Smart Academic Timetable Management System")
-            self.resize(1200, 760)
-            self.setMinimumSize(1050, 680)
+            self.resize(1150, 720)
+            self.setMinimumSize(1000, 650)
 
         self.setup_ui()
         self.load_dropdowns()
@@ -77,9 +77,9 @@ class AssignmentsWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        lbl_title = QLabel("Faculty Workload Management")
+        lbl_title = QLabel("Workload")
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        lbl_sub = QLabel("Assign multiple classes and subject teaching hours per faculty member")
+        lbl_sub = QLabel("Assign subjects and teaching periods to faculty")
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -97,7 +97,7 @@ class AssignmentsWindow(QWidget):
         form_layout.setContentsMargins(25, 20, 25, 25)
         form_layout.setSpacing(15)
 
-        form_title = QLabel("Workload Assignment Details")
+        form_title = QLabel("Assign Workload")
         form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         form_layout.addWidget(form_title)
 
@@ -108,15 +108,14 @@ class AssignmentsWindow(QWidget):
         grid.setColumnStretch(2, 1)
         grid.setColumnStretch(3, 1)
 
-        # Row 0: Faculty, Class, Subject, Priority
-        lbl_fac = QLabel("Faculty Member *")
+        # Row: Faculty, Class, Subject, Periods/Week
+        lbl_fac = QLabel("Faculty *")
         lbl_fac.setStyleSheet("font-weight: 600;")
         self.faculty_combo = QComboBox()
-        self.faculty_combo.currentIndexChanged.connect(self.update_faculty_capacity_indicator)
         grid.addWidget(lbl_fac, 0, 0)
         grid.addWidget(self.faculty_combo, 1, 0)
 
-        lbl_cls = QLabel("Academic Class *")
+        lbl_cls = QLabel("Class *")
         lbl_cls.setStyleSheet("font-weight: 600;")
         self.class_combo = QComboBox()
         grid.addWidget(lbl_cls, 0, 1)
@@ -125,37 +124,15 @@ class AssignmentsWindow(QWidget):
         lbl_sub = QLabel("Subject *")
         lbl_sub.setStyleSheet("font-weight: 600;")
         self.subject_combo = QComboBox()
-        self.subject_combo.currentIndexChanged.connect(self.on_subject_change)
         grid.addWidget(lbl_sub, 0, 2)
         grid.addWidget(self.subject_combo, 1, 2)
 
-        lbl_prio = QLabel("Priority / Type")
-        lbl_prio.setStyleSheet("font-weight: 600;")
-        self.priority_combo = QComboBox()
-        self.priority_combo.addItems(["Normal", "High Priority", "Low Priority", "Guest / Core"])
-        grid.addWidget(lbl_prio, 0, 3)
-        grid.addWidget(self.priority_combo, 1, 3)
-
-        # Row 1: Periods/Week + Workload status bar
-        lbl_periods = QLabel("Periods / Week *")
+        lbl_periods = QLabel("Periods/Week *")
         lbl_periods.setStyleSheet("font-weight: 600;")
         self.periods_entry = QLineEdit("4")
         self.periods_entry.setPlaceholderText("4")
-        grid.addWidget(lbl_periods, 2, 0)
-        grid.addWidget(self.periods_entry, 3, 0)
-
-        # Workload status gauge
-        load_box = QVBoxLayout()
-        load_box.setSpacing(4)
-        self.lbl_workload_status = QLabel("Faculty Load: 0 / 18 hrs")
-        self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #2563EB;")
-        self.workload_progress = QProgressBar()
-        self.workload_progress.setRange(0, 24)
-        self.workload_progress.setValue(0)
-        self.workload_progress.setFixedHeight(16)
-        load_box.addWidget(self.lbl_workload_status)
-        load_box.addWidget(self.workload_progress)
-        grid.addLayout(load_box, 3, 1, 1, 3)
+        grid.addWidget(lbl_periods, 0, 3)
+        grid.addWidget(self.periods_entry, 1, 3)
 
         form_layout.addLayout(grid)
 
@@ -163,25 +140,25 @@ class AssignmentsWindow(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.btn_add = QPushButton("Assign Workload")
+        self.btn_add = QPushButton("Assign")
         self.btn_add.setProperty("btnStyle", "success")
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self.add_workload_record)
         btn_layout.addWidget(self.btn_add)
 
-        self.btn_update = QPushButton("Update Selected")
+        self.btn_update = QPushButton("Update")
         self.btn_update.setProperty("btnStyle", "secondary")
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_update.clicked.connect(self.update_workload_record)
         btn_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete = QPushButton("Delete")
         self.btn_delete.setProperty("btnStyle", "danger")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_workload_record)
         btn_layout.addWidget(self.btn_delete)
 
-        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear = QPushButton("Clear")
         self.btn_clear.setProperty("btnStyle", "ghost")
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.clicked.connect(self.clear_form)
@@ -204,12 +181,12 @@ class AssignmentsWindow(QWidget):
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(10)
 
-        lbl_tbl = QLabel("Allocated Faculty Workloads")
+        lbl_tbl = QLabel("Workload List")
         lbl_tbl.setStyleSheet("font-size: 16px; font-weight: bold;")
         filter_layout.addWidget(lbl_tbl)
         filter_layout.addStretch()
 
-        filter_layout.addWidget(QLabel("Filter by Faculty:"))
+        filter_layout.addWidget(QLabel("Faculty:"))
         self.filter_faculty_combo = QComboBox()
         self.filter_faculty_combo.setMinimumWidth(220)
         self.filter_faculty_combo.currentIndexChanged.connect(self.filter_table_by_faculty)
@@ -225,16 +202,15 @@ class AssignmentsWindow(QWidget):
 
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(8)
+        self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Faculty Name", "Class Name", "Semester", "Subject Code", "Subject Name", "Priority", "Hrs / Wk"
+            "ID", "Faculty Name", "Class Name", "Semester", "Subject Code", "Subject Name", "Hrs / Wk"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -256,9 +232,8 @@ class AssignmentsWindow(QWidget):
             fid = f[0]
             fname = f[2]
             dept = f[3] if len(f) > 3 else ""
-            max_hrs = f[7] if len(f) > 7 else 18
             display = f"{fname} ({dept})"
-            self.faculty_combo.addItem(display, (fid, max_hrs))
+            self.faculty_combo.addItem(display, fid)
             self.filter_faculty_combo.addItem(display, fid)
             if self.preselected_faculty_id and fid == self.preselected_faculty_id:
                 selected_idx = idx
@@ -280,40 +255,7 @@ class AssignmentsWindow(QWidget):
             sid = s[0]
             code = s[1]
             sname = s[2]
-            hrs = s[6] if len(s) > 6 else 4
-            self.subject_combo.addItem(f"{code} - {sname}", (sid, hrs))
-
-    def on_subject_change(self):
-        data = self.subject_combo.currentData()
-        if data and len(data) > 1:
-            self.periods_entry.setText(str(data[1] or 4))
-
-    def update_faculty_capacity_indicator(self):
-        data = self.faculty_combo.currentData()
-        if not data:
-            return
-        fid, max_hrs = data if isinstance(data, tuple) else (data, 18)
-
-        all_wl = get_all_workloads() or []
-        current_hrs = 0
-        for w in all_wl:
-            if len(w) > 1 and w[1] == fid:
-                current_hrs += int(w[13] if len(w) > 13 else 0)
-
-        self.workload_progress.setMaximum(max(24, max_hrs))
-        self.workload_progress.setValue(current_hrs)
-
-        if current_hrs > max_hrs:
-            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Overloaded)"
-            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #EF4444;")
-        elif current_hrs == max_hrs:
-            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Full Capacity)"
-            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #10B981;")
-        else:
-            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Available: {max_hrs - current_hrs} hrs)"
-            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #2563EB;")
-
-        self.lbl_workload_status.setText(status_text)
+            self.subject_combo.addItem(f"{code} - {sname}", sid)
 
     def load_workloads(self, records=None):
         if records is None:
@@ -330,16 +272,13 @@ class AssignmentsWindow(QWidget):
             sem = f"Sem {rec[7]}" if len(rec) > 7 and rec[7] else "—"
             scode = rec[10] if len(rec) > 10 else ""
             sname = rec[11] if len(rec) > 11 else ""
-            prio = rec[12] if len(rec) > 12 else "Normal"
             hrs = rec[13] if len(rec) > 13 else ""
 
-            row_items = [str(wid), str(fname), str(cname), str(sem), str(scode), str(sname), str(prio), str(hrs)]
+            row_items = [str(wid), str(fname), str(cname), str(sem), str(scode), str(sname), str(hrs)]
             for col_idx, text in enumerate(row_items):
                 item = QTableWidgetItem(text)
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 3, 4, 6, 7] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 3, 4, 6] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 self.table.setItem(row_idx, col_idx, item)
-
-        self.update_faculty_capacity_indicator()
 
     def filter_table_by_faculty(self):
         selected_fid = self.filter_faculty_combo.currentData()
@@ -362,12 +301,10 @@ class AssignmentsWindow(QWidget):
             fid = rec[1]
             cid = rec[4]
             sid = rec[9]
-            prio = rec[12] if len(rec) > 12 else "Normal"
             hrs = rec[13] if len(rec) > 13 else 4
 
             for i in range(self.faculty_combo.count()):
-                d = self.faculty_combo.itemData(i)
-                if d and (d[0] == fid if isinstance(d, tuple) else d == fid):
+                if self.faculty_combo.itemData(i) == fid:
                     self.faculty_combo.setCurrentIndex(i)
                     break
 
@@ -377,38 +314,32 @@ class AssignmentsWindow(QWidget):
                     break
 
             for i in range(self.subject_combo.count()):
-                d = self.subject_combo.itemData(i)
-                if d and (d[0] == sid if isinstance(d, tuple) else d == sid):
+                if self.subject_combo.itemData(i) == sid:
                     self.subject_combo.setCurrentIndex(i)
                     break
 
-            self.priority_combo.setCurrentText(str(prio))
             self.periods_entry.setText(str(hrs))
 
     def clear_form(self):
         self.selected_workload_id = None
         self.periods_entry.setText("4")
-        self.priority_combo.setCurrentIndex(0)
         self.table.clearSelection()
-        self.update_faculty_capacity_indicator()
 
     def add_workload_record(self):
-        fac_data = self.faculty_combo.currentData()
-        if not fac_data:
+        faculty_id = self.faculty_combo.currentData()
+        if not faculty_id:
             QMessageBox.warning(self, "Validation Error", "Please select a faculty member.")
             return
-        faculty_id = fac_data[0] if isinstance(fac_data, tuple) else fac_data
 
         class_id = self.class_combo.currentData()
         if not class_id:
             QMessageBox.warning(self, "Validation Error", "Please select an academic class.")
             return
 
-        sub_data = self.subject_combo.currentData()
-        if not sub_data:
+        subject_id = self.subject_combo.currentData()
+        if not subject_id:
             QMessageBox.warning(self, "Validation Error", "Please select a subject.")
             return
-        subject_id = sub_data[0] if isinstance(sub_data, tuple) else sub_data
 
         try:
             hrs = int(self.periods_entry.text().strip())
@@ -418,13 +349,11 @@ class AssignmentsWindow(QWidget):
             QMessageBox.warning(self, "Validation Error", "Periods/Week must be an integer between 1 and 30.")
             return
 
-        prio = self.priority_combo.currentText()
-
         workload_id = add_workload(
             faculty_id=faculty_id,
             class_id=class_id,
             subject_id=subject_id,
-            priority=prio,
+            priority="Normal",
             periods_per_week=hrs
         )
 
@@ -440,11 +369,9 @@ class AssignmentsWindow(QWidget):
             QMessageBox.warning(self, "Update", "Please select a workload record from the table to update.")
             return
 
-        fac_data = self.faculty_combo.currentData()
-        faculty_id = fac_data[0] if isinstance(fac_data, tuple) else fac_data
+        faculty_id = self.faculty_combo.currentData()
         class_id = self.class_combo.currentData()
-        sub_data = self.subject_combo.currentData()
-        subject_id = sub_data[0] if isinstance(sub_data, tuple) else sub_data
+        subject_id = self.subject_combo.currentData()
 
         try:
             hrs = int(self.periods_entry.text().strip())
@@ -454,14 +381,12 @@ class AssignmentsWindow(QWidget):
             QMessageBox.warning(self, "Validation Error", "Periods/Week must be an integer between 1 and 30.")
             return
 
-        prio = self.priority_combo.currentText()
-
         success = update_workload(
             workload_id=self.selected_workload_id,
             faculty_id=faculty_id,
             class_id=class_id,
             subject_id=subject_id,
-            priority=prio,
+            priority="Normal",
             periods_per_week=hrs
         )
 

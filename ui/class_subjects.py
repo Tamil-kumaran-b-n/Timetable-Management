@@ -75,9 +75,9 @@ class ClassSubjectsWindow(QWidget):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(4)
-        lbl_title = QLabel("Class - Subject Assignment")
+        lbl_title = QLabel("Class Subjects")
         lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
-        lbl_sub = QLabel("Map curriculum subjects and assigned faculty to specific academic classes")
+        lbl_sub = QLabel("Assign subjects and faculty to classes")
         lbl_sub.setProperty("secondary", True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -95,7 +95,7 @@ class ClassSubjectsWindow(QWidget):
         form_layout.setContentsMargins(25, 20, 25, 25)
         form_layout.setSpacing(15)
 
-        form_title = QLabel("Assign Subject to Class")
+        form_title = QLabel("Assign Subject")
         form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         form_layout.addWidget(form_title)
 
@@ -107,27 +107,27 @@ class ClassSubjectsWindow(QWidget):
         grid.setColumnStretch(3, 1)
 
         # Row 0: Target Class, Subject, Faculty, Hours/Week
-        lbl_cls = QLabel("Select Academic Class *")
+        lbl_cls = QLabel("Class *")
         lbl_cls.setStyleSheet("font-weight: 600;")
         self.class_combo = QComboBox()
         self.class_combo.currentIndexChanged.connect(self.on_class_change)
         grid.addWidget(lbl_cls, 0, 0)
         grid.addWidget(self.class_combo, 1, 0)
 
-        lbl_sub = QLabel("Select Subject *")
+        lbl_sub = QLabel("Subject *")
         lbl_sub.setStyleSheet("font-weight: 600;")
         self.subject_combo = QComboBox()
         self.subject_combo.currentIndexChanged.connect(self.on_subject_change)
         grid.addWidget(lbl_sub, 0, 1)
         grid.addWidget(self.subject_combo, 1, 1)
 
-        lbl_fac = QLabel("Assigned Faculty")
+        lbl_fac = QLabel("Faculty")
         lbl_fac.setStyleSheet("font-weight: 600;")
         self.faculty_combo = QComboBox()
         grid.addWidget(lbl_fac, 0, 2)
         grid.addWidget(self.faculty_combo, 1, 2)
 
-        lbl_hrs = QLabel("Hours / Week *")
+        lbl_hrs = QLabel("Hours/Week *")
         lbl_hrs.setStyleSheet("font-weight: 600;")
         self.hours_entry = QLineEdit("4")
         self.hours_entry.setPlaceholderText("4")
@@ -140,13 +140,13 @@ class ClassSubjectsWindow(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        self.btn_assign = QPushButton("Assign Subject to Class")
+        self.btn_assign = QPushButton("Assign")
         self.btn_assign.setProperty("btnStyle", "success")
         self.btn_assign.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_assign.clicked.connect(self.assign_subject)
         btn_layout.addWidget(self.btn_assign)
 
-        self.btn_delete = QPushButton("Delete Assignment")
+        self.btn_delete = QPushButton("Remove")
         self.btn_delete.setProperty("btnStyle", "danger")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_assignment)
@@ -169,12 +169,12 @@ class ClassSubjectsWindow(QWidget):
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(10)
 
-        lbl_tbl = QLabel("Assigned Class Subjects")
+        lbl_tbl = QLabel("Assigned Subjects")
         lbl_tbl.setStyleSheet("font-size: 16px; font-weight: bold;")
         filter_layout.addWidget(lbl_tbl)
         filter_layout.addStretch()
 
-        filter_layout.addWidget(QLabel("Filter by Class:"))
+        filter_layout.addWidget(QLabel("Class:"))
         self.filter_class_combo = QComboBox()
         self.filter_class_combo.setMinimumWidth(220)
         self.filter_class_combo.currentIndexChanged.connect(self.filter_table_by_class)
