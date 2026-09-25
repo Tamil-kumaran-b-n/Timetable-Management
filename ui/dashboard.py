@@ -1,6 +1,6 @@
 import sys
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QFrame, QScrollArea, QMessageBox, QStackedWidget, QSizePolicy
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QFrame, QScrollArea, QMessageBox, QStackedWidget, QSizePolicy, QDialog
 from ui.faculty import FacultyWindow
 from ui.subjects import SubjectsWindow
 from ui.classrooms import ClassroomsWindow
@@ -433,6 +433,28 @@ class Dashboard(QMainWindow):
         btn_logout.clicked.connect(self.confirm_logout)
         acc_layout.addWidget(btn_logout, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(acc_card)
+
+        credits_card = QFrame()
+        credits_card.setObjectName('Card')
+        credits_layout = QVBoxLayout(credits_card)
+        credits_layout.setContentsMargins(25, 20, 25, 20)
+        credits_layout.setSpacing(12)
+
+        lbl_cr = QLabel('Credits & About')
+        lbl_cr.setObjectName('Subheading')
+        lbl_crs = QLabel('Software version, developer credits and contributors.')
+        lbl_crs.setObjectName('Secondary')
+        credits_layout.addWidget(lbl_cr)
+        credits_layout.addWidget(lbl_crs)
+
+        btn_credits = QPushButton('Credits')
+        btn_credits.setProperty('btnStyle', 'secondary')
+        btn_credits.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_credits.setFixedWidth(140)
+        btn_credits.clicked.connect(lambda: CreditsDialog(self).exec())
+        credits_layout.addWidget(btn_credits, 0, Qt.AlignmentFlag.AlignLeft)
+
+        layout.addWidget(credits_card)
         layout.addStretch()
         return scroll
 
@@ -457,6 +479,75 @@ class Dashboard(QMainWindow):
 
     def run(self):
         self.show()
+
+class CreditsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Credits')
+        self.setFixedSize(500, 480)
+        self.setModal(True)
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 25, 30, 25)
+        layout.setSpacing(14)
+
+        title = QLabel('Smart Academic Timetable Management System')
+        title.setObjectName('Heading')
+        title.setWordWrap(True)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
+
+        version = QLabel('Version 1.0')
+        version.setObjectName('Secondary')
+        version.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(version)
+
+        card = QFrame()
+        card.setObjectName('Card')
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(20, 15, 20, 15)
+        card_layout.setSpacing(12)
+
+        dev_title = QLabel('Software Developed by')
+        dev_title.setObjectName('Subheading')
+        card_layout.addWidget(dev_title)
+
+        dev_names = QLabel('• Tamil Kumaran (BCA Year 3)\n• Haridharan (BCA Year 3)\n• Bakthavasalam (BCA Year 3)')
+        dev_names.setObjectName('Body')
+        card_layout.addWidget(dev_names)
+
+        asst_title = QLabel('Assisted by')
+        asst_title.setObjectName('Subheading')
+        card_layout.addWidget(asst_title)
+
+        asst_names = QLabel('• Joshua Thomas (External)\n• Antigravity\n• Codex')
+        asst_names.setObjectName('Body')
+        card_layout.addWidget(asst_names)
+
+        tech_title = QLabel('Technology Stack')
+        tech_title.setObjectName('Subheading')
+        card_layout.addWidget(tech_title)
+
+        tech_names = QLabel('• Made entirely in Python\n• UI Framework: PySide6')
+        tech_names.setObjectName('Body')
+        card_layout.addWidget(tech_names)
+
+        layout.addWidget(card)
+        layout.addStretch()
+
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        btn_close = QPushButton('Close')
+        btn_close.setProperty('btnStyle', 'primary')
+        btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_close.setFixedWidth(100)
+        btn_close.clicked.connect(self.accept)
+        btn_box.addWidget(btn_close)
+        btn_box.addStretch()
+
+        layout.addLayout(btn_box)
 if __name__ == '__main__':
     from database.database import create_tables
     create_tables()
