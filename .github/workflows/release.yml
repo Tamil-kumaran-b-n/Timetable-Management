@@ -46,12 +46,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          $tagName = if ($env:GITHUB_REF -like 'refs/tags/*') { $env:GITHUB_REF_NAME } else { 'v1.0.0' }
-          $relTitle = if ($env:GITHUB_REF -like 'refs/tags/*') { "Release $env:GITHUB_REF_NAME" } else { 'Smart Timetable Management v1.0.0' }
+          $tagName = if ($env:GITHUB_REF -like 'refs/tags/*') { $env:GITHUB_REF_NAME } else { 'v1.0.1' }
+          $relTitle = if ($env:GITHUB_REF -like 'refs/tags/*') { "Release $env:GITHUB_REF_NAME" } else { 'Smart Timetable Management v1.0.1' }
           $notes = "Automated release of Smart Academic Timetable Management System ($tagName)"
           
-          if (gh release view $tagName 2>$null) {
+          gh release view $tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
             gh release upload $tagName dist/TimetableManagement.exe --clobber
           } else {
-            gh release create $tagName dist/TimetableManagement.exe --title "$relTitle" --notes "$notes" --clobber
+            gh release create $tagName dist/TimetableManagement.exe --title "$relTitle" --notes "$notes"
           }
