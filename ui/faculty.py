@@ -1,6 +1,16 @@
+"""
+Faculty Management Window & Embedded Widget in PySide6.
+"""
+
 import re
-import customtkinter as ctk
-from tkinter import messagebox
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QCheckBox,
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QFrame, QScrollArea, QAbstractItemView, QSizePolicy
+)
 
 from database.database import (
     add_faculty,
@@ -11,1109 +21,424 @@ from database.database import (
 )
 
 
-class FacultyWindow:
-
+class FacultyWindow(QWidget):
     def __init__(self, parent=None, container=None, navigate=None):
-
-        self.parent = parent
-        self.embedded = container is not None
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.navigate = navigate
-
-        self.window = container if self.embedded else (
-            ctk.CTkToplevel(parent) if parent else ctk.CTk()
-        )
+        self.embedded = container is not None
+        self.selected_id = None
 
         if not self.embedded:
-            self.window.title(
-                "Faculty Management - Smart Academic Timetable Management System"
-            )
-            self.window.geometry("1200x720")
-            self.window.minsize(1050, 650)
+            self.setWindowTitle("Faculty Management - Smart Academic Timetable Management System")
+            self.resize(1200, 720)
+            self.setMinimumSize(1050, 650)
 
-        self.selected_id = None
-
-        self.create_ui()
+        self.setup_ui()
         self.load_faculty()
 
-    # =====================================================
-    # CREATE UI
-    # =====================================================
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-    def create_ui(self):
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        main = ctk.CTkScrollableFrame(
-            self.window,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
+        # Scroll Area for page content
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-        main.pack(
-            fill="both",
-            expand=True
-        )
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll.setWidget(scroll_content)
 
-        # =================================================
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
+
+        # =====================================================
         # HEADER
-        # =================================================
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        header = ctk.CTkFrame(
-            main,
-            height=80,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=0
-        )
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        lbl_title = QLabel("Faculty Management")
+        lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        lbl_sub = QLabel("Manage faculty information, qualifications, and weekly teaching workloads")
+        lbl_sub.setProperty("secondary", True)
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        header.pack(fill="x")
-        header.pack_propagate(False)
+        if self.navigate:
+            btn_workload = QPushButton("Manage Workloads")
+            btn_workload.setProperty("btnStyle", "secondary")
+            btn_workload.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_workload.clicked.connect(lambda: self.navigate("assignments"))
+            header_layout.addWidget(btn_workload)
 
-        ctk.CTkLabel(
-            header,
-            text="Faculty Management",
-            font=("Arial", 25, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            side="left",
-            padx=30
-        )
+        main_layout.addWidget(header_card)
 
-        ctk.CTkLabel(
-            header,
-            text="Manage faculty information and workloads",
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            side="right",
-            padx=30
-        )
-
-        # =================================================
+        # =====================================================
         # FORM CARD
-        # =================================================
-
-        form_card = ctk.CTkFrame(
-            main,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        form_card.pack(
-            fill="x",
-            padx=25,
-            pady=20
-        )
-
-        for column in range(4):
-
-            form_card.grid_columnconfigure(
-                column,
-                weight=1
-            )
-
-        # =================================================
-        # FORM TITLE
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Faculty Details",
-            font=("Arial", 18, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).grid(
-            row=0,
-            column=0,
-            columnspan=4,
-            sticky="w",
-            padx=25,
-            pady=(20, 15)
-        )
-
-        # =================================================
-        # FACULTY ID
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Faculty ID",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=1,
-            column=0,
-            sticky="w",
-            padx=25,
-            pady=5
-        )
-
-        self.faculty_id_entry = ctk.CTkEntry(
-            form_card,
-            height=38,
-            placeholder_text="Example: FAC001"
-        )
-
-        self.faculty_id_entry.grid(
-            row=2,
-            column=0,
-            padx=25,
-            pady=(0, 15),
-            sticky="ew"
-        )
-
-        # =================================================
-        # FACULTY NAME
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Faculty Name *",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=1,
-            column=1,
-            sticky="w",
-            padx=15,
-            pady=5
-        )
-
-        self.name_entry = ctk.CTkEntry(
-            form_card,
-            height=38,
-            placeholder_text="Enter faculty name"
-        )
-
-        self.name_entry.grid(
-            row=2,
-            column=1,
-            padx=15,
-            pady=(0, 15),
-            sticky="ew"
-        )
-
-        # =================================================
-        # DEPARTMENT
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Department *",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=1,
-            column=2,
-            sticky="w",
-            padx=15,
-            pady=5
-        )
-
-        self.department_entry = ctk.CTkEntry(
-            form_card,
-            height=38,
-            placeholder_text="Example: BCA"
-        )
-
-        self.department_entry.grid(
-            row=2,
-            column=2,
-            padx=15,
-            pady=(0, 15),
-            sticky="ew"
-        )
-
-        # =================================================
-        # EMAIL
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Email",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=3,
-            column=0,
-            sticky="w",
-            padx=25,
-            pady=5
-        )
-
-        self.email_entry = ctk.CTkEntry(
-            form_card,
-            height=38,
-            placeholder_text="example@college.edu"
-        )
-
-        self.email_entry.grid(
-            row=4,
-            column=0,
-            padx=25,
-            pady=(0, 20),
-            sticky="ew"
-        )
-
-        # =================================================
-        # PHONE
-        # =================================================
-
-        ctk.CTkLabel(
-            form_card,
-            text="Phone",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=3,
-            column=1,
-            sticky="w",
-            padx=15,
-            pady=5
-        )
-
-        self.phone_entry = ctk.CTkEntry(
-            form_card,
-            height=38,
-            placeholder_text="10 digit mobile number"
-        )
-
-        self.phone_entry.grid(
-            row=4,
-            column=1,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
-
-        # =================================================
-        # BUTTONS
-        # =================================================
-
-        button_frame = ctk.CTkFrame(
-            form_card,
-            fg_color="transparent"
-        )
-
-        button_frame.grid(
-            row=4,
-            column=2,
-            columnspan=2,
-            padx=15,
-            pady=(0, 20),
-            sticky="w"
-        )
-
-        ctk.CTkButton(
-            button_frame,
-            text="Add Faculty",
-            width=110,
-            height=38,
-            command=self.add_faculty_record
-        ).pack(
-            side="left",
-            padx=4
-        )
-
-        ctk.CTkButton(
-            button_frame,
-            text="Update",
-            width=90,
-            height=38,
-            command=self.update_faculty_record
-        ).pack(
-            side="left",
-            padx=4
-        )
-
-        ctk.CTkButton(
-            button_frame,
-            text="Clear",
-            width=80,
-            height=38,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self.clear_form
-        ).pack(
-            side="left",
-            padx=4
-        )
-
-        # =================================================
-        # SEARCH
-        # =================================================
-
-        search_frame = ctk.CTkFrame(
-            main,
-            fg_color="transparent"
-        )
-
-        search_frame.pack(
-            fill="x",
-            padx=25,
-            pady=(0, 10)
-        )
-
-        ctk.CTkLabel(
-            search_frame,
-            text="Search Faculty",
-            font=("Arial", 14, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).pack(
-            side="left",
-            padx=(0, 10)
-        )
-
-        self.search_entry = ctk.CTkEntry(
-            search_frame,
-            width=320,
-            height=38,
-            placeholder_text=(
-                "Search by ID, name, department, email or phone"
-            )
-        )
-
-        self.search_entry.pack(
-            side="left"
-        )
-
-        ctk.CTkButton(
-            search_frame,
-            text="Search",
-            width=90,
-            height=38,
-            command=self.search_records
-        ).pack(
-            side="left",
-            padx=8
-        )
-
-        ctk.CTkButton(
-            search_frame,
-            text="Show All",
-            width=90,
-            height=38,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self.load_faculty
-        ).pack(
-            side="left"
-        )
-
-        # =================================================
-        # FACULTY RECORDS CARD
-        # =================================================
-
-        list_card = ctk.CTkFrame(
-            main,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        list_card.pack(
-            fill="x",
-            padx=25,
-            pady=(0, 25)
-        )
-
-        ctk.CTkLabel(
-            list_card,
-            text="Faculty Records",
-            font=("Arial", 18, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(15, 5)
-        )
-
-        ctk.CTkLabel(
-            list_card,
-            text="Manage faculty members and add their workloads.",
-            font=("Arial", 12),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(0, 12)
-        )
-
-        # =================================================
-        # SCROLLABLE TABLE
-        # =================================================
-
-        self.list_frame = ctk.CTkFrame(
-            list_card,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=8
-        )
-
-        self.list_frame.pack(
-            fill="both",
-            expand=True,
-            padx=15,
-            pady=(0, 15)
-        )
-
-    # =====================================================
-    # LOAD FACULTY
-    # =====================================================
-
-    def load_faculty(self):
-
-        records = get_all_faculty()
-
-        self.display_records(records)
-
-    # =====================================================
-    # DISPLAY RECORDS
-    # =====================================================
-
-    def display_records(self, records):
-
-        for widget in self.list_frame.winfo_children():
-            widget.destroy()
-
-        headers = [
-            "Faculty ID",
-            "Faculty Name",
-            "Department",
-            "Email",
-            "Phone",
-            "Action"
-        ]
-
-        widths = [
-            120,
-            190,
-            140,
-            250,
-            150,
-            270
-        ]
-
-        # =================================================
-        # TABLE HEADER
-        # =================================================
-
-        for column, (header, width) in enumerate(
-            zip(headers, widths)
-        ):
-
-            ctk.CTkLabel(
-                self.list_frame,
-                text=header,
-                width=width,
-                height=40,
-                font=("Arial", 12, "bold"),
-                text_color=("#18181B", "#F4F4F5"),
-                fg_color=("#E4E4E7", "#27272A"),
-                corner_radius=5,
-                anchor="center"
-            ).grid(
-                row=0,
-                column=column,
-                padx=3,
-                pady=4,
-                sticky="ew"
-            )
-
-        # =================================================
-        # NO RECORDS
-        # =================================================
-
-        if not records:
-
-            ctk.CTkLabel(
-                self.list_frame,
-                text="No faculty records found.",
-                font=("Arial", 14),
-                text_color=("#9CA3AF", "#64748B")
-            ).grid(
-                row=1,
-                column=0,
-                columnspan=6,
-                pady=50
-            )
-
+        # =====================================================
+        form_card = QFrame()
+        form_card.setObjectName("Card")
+        form_layout = QVBoxLayout(form_card)
+        form_layout.setContentsMargins(25, 20, 25, 25)
+        form_layout.setSpacing(15)
+
+        form_title = QLabel("Faculty Details")
+        form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        form_layout.addWidget(form_title)
+
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 1)
+
+        # Row 0: Faculty ID, Name, Department
+        lbl_fid = QLabel("Faculty ID / Code")
+        lbl_fid.setStyleSheet("font-weight: 600;")
+        self.faculty_id_entry = QLineEdit()
+        self.faculty_id_entry.setPlaceholderText("Example: FAC001")
+        grid.addWidget(lbl_fid, 0, 0)
+        grid.addWidget(self.faculty_id_entry, 1, 0)
+
+        lbl_fname = QLabel("Faculty Name *")
+        lbl_fname.setStyleSheet("font-weight: 600;")
+        self.name_entry = QLineEdit()
+        self.name_entry.setPlaceholderText("Enter faculty name")
+        grid.addWidget(lbl_fname, 0, 1)
+        grid.addWidget(self.name_entry, 1, 1)
+
+        lbl_dept = QLabel("Department *")
+        lbl_dept.setStyleSheet("font-weight: 600;")
+        self.department_entry = QLineEdit()
+        self.department_entry.setPlaceholderText("Example: BCA / Computer Science")
+        grid.addWidget(lbl_dept, 0, 2)
+        grid.addWidget(self.department_entry, 1, 2)
+
+        # Row 1: Email, Phone, Designation
+        lbl_email = QLabel("Email")
+        lbl_email.setStyleSheet("font-weight: 600;")
+        self.email_entry = QLineEdit()
+        self.email_entry.setPlaceholderText("example@college.edu")
+        grid.addWidget(lbl_email, 2, 0)
+        grid.addWidget(self.email_entry, 3, 0)
+
+        lbl_phone = QLabel("Phone")
+        lbl_phone.setStyleSheet("font-weight: 600;")
+        self.phone_entry = QLineEdit()
+        self.phone_entry.setPlaceholderText("e.g. 9876543210")
+        grid.addWidget(lbl_phone, 2, 1)
+        grid.addWidget(self.phone_entry, 3, 1)
+
+        lbl_desig = QLabel("Designation")
+        lbl_desig.setStyleSheet("font-weight: 600;")
+        self.designation_entry = QLineEdit()
+        self.designation_entry.setPlaceholderText("e.g. Assistant Professor")
+        grid.addWidget(lbl_desig, 2, 2)
+        grid.addWidget(self.designation_entry, 3, 2)
+
+        # Row 2: Max Hours, Active status
+        lbl_max_hours = QLabel("Max Hours / Week")
+        lbl_max_hours.setStyleSheet("font-weight: 600;")
+        self.max_hours_entry = QLineEdit("18")
+        self.max_hours_entry.setPlaceholderText("18")
+        grid.addWidget(lbl_max_hours, 4, 0)
+        grid.addWidget(self.max_hours_entry, 5, 0)
+
+        self.is_active_check = QCheckBox("Active Faculty Member")
+        self.is_active_check.setChecked(True)
+        grid.addWidget(self.is_active_check, 5, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        form_layout.addLayout(grid)
+
+        # Form Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+
+        self.btn_add = QPushButton("Add Faculty")
+        self.btn_add.setProperty("btnStyle", "success")
+        self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_add.clicked.connect(self.add_faculty_record)
+        btn_layout.addWidget(self.btn_add)
+
+        self.btn_update = QPushButton("Update Selected")
+        self.btn_update.setProperty("btnStyle", "secondary")
+        self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_update.clicked.connect(self.update_faculty_record)
+        btn_layout.addWidget(self.btn_update)
+
+        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete.setProperty("btnStyle", "danger")
+        self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_delete.clicked.connect(self.delete_faculty_record)
+        btn_layout.addWidget(self.btn_delete)
+
+        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear.setProperty("btnStyle", "ghost")
+        self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.clicked.connect(self.clear_form)
+        btn_layout.addWidget(self.btn_clear)
+
+        btn_layout.addStretch()
+        form_layout.addLayout(btn_layout)
+
+        main_layout.addWidget(form_card)
+
+        # =====================================================
+        # SEARCH & TABLE CARD
+        # =====================================================
+        table_card = QFrame()
+        table_card.setObjectName("Card")
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(25, 20, 25, 25)
+        table_layout.setSpacing(15)
+
+        # Search Bar
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
+
+        lbl_tbl_title = QLabel("Registered Faculty")
+        lbl_tbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        search_layout.addWidget(lbl_tbl_title)
+        search_layout.addStretch()
+
+        self.search_entry = QLineEdit()
+        self.search_entry.setPlaceholderText("Search by name, department, code...")
+        self.search_entry.setFixedWidth(260)
+        self.search_entry.textChanged.connect(self.search_records)
+        search_layout.addWidget(self.search_entry)
+
+        btn_reset = QPushButton("Reset")
+        btn_reset.setProperty("btnStyle", "secondary")
+        btn_reset.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_reset.clicked.connect(lambda: [self.search_entry.clear(), self.load_faculty()])
+        search_layout.addWidget(btn_reset)
+
+        table_layout.addLayout(search_layout)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(9)
+        self.table.setHorizontalHeaderLabels([
+            "ID", "Faculty ID", "Name", "Department", "Email", "Phone", "Designation", "Max Hrs", "Status"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setMinimumHeight(300)
+        self.table.itemSelectionChanged.connect(self.on_table_select)
+
+        table_layout.addWidget(self.table)
+        main_layout.addWidget(table_card)
+        main_layout.addStretch()
+
+    def load_faculty(self, records=None):
+        if records is None:
+            records = get_all_faculty() or []
+
+        self.records_data = records
+        self.table.setRowCount(0)
+
+        for row_idx, rec in enumerate(records):
+            self.table.insertRow(row_idx)
+            for col_idx in range(min(9, len(rec))):
+                val = rec[col_idx]
+                if col_idx == 8:
+                    val = "Active" if val == 1 else "Inactive"
+                item = QTableWidgetItem(str(val) if val is not None else "")
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 7, 8] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.table.setItem(row_idx, col_idx, item)
+
+    def on_table_select(self):
+        selected_items = self.table.selectedItems()
+        if not selected_items:
             return
 
-        # =================================================
-        # RECORD ROWS
-        # =================================================
-
-        for row_number, record in enumerate(
-            records,
-            start=1
-        ):
-
-            record_id = record[0]
-            faculty_id = record[1]
-            name = record[2]
-            department = record[3]
-            email = record[4]
-            phone = record[5]
-
-            values = [
-                faculty_id or "-",
-                name or "-",
-                department or "-",
-                email or "-",
-                phone or "-"
-            ]
-
-            # =================================================
-            # DATA COLUMNS
-            # =================================================
-
-            for column, (value, width) in enumerate(
-                zip(values, widths)
-            ):
-
-                ctk.CTkLabel(
-                    self.list_frame,
-                    text=str(value),
-                    width=width,
-                    height=42,
-                    font=("Arial", 12),
-                    text_color=("#374151", "#E2E8F0"),
-                    fg_color=("#F4F4F5", "#2C2C2C"),
-                    corner_radius=4,
-                    anchor="w"
-                ).grid(
-                    row=row_number,
-                    column=column,
-                    padx=3,
-                    pady=3,
-                    sticky="ew"
-                )
-
-            # =================================================
-            # ACTION COLUMN
-            # =================================================
-
-            action_frame = ctk.CTkFrame(
-                self.list_frame,
-                width=270,
-                height=42,
-                fg_color=("#F4F4F5", "#2C2C2C"),
-                corner_radius=4
-            )
-
-            action_frame.grid(
-                row=row_number,
-                column=5,
-                padx=3,
-                pady=3,
-                sticky="ew"
-            )
-
-            action_frame.grid_propagate(False)
-
-            # =================================================
-            # SELECT
-            # =================================================
-
-            ctk.CTkButton(
-                action_frame,
-                text="Select",
-                width=65,
-                height=30,
-                command=lambda r=record:
-                    self.select_record(r)
-            ).pack(
-                side="left",
-                padx=(7, 3),
-                pady=6
-            )
-
-            # =================================================
-            # ADD WORKLOAD
-            # =================================================
-
-            ctk.CTkButton(
-                action_frame,
-                text="Add Workload",
-                width=105,
-                height=30,
-                command=lambda rid=record_id:
-                    self.open_workload(rid)
-            ).pack(
-                side="left",
-                padx=3,
-                pady=6
-            )
-
-            # =================================================
-            # DELETE
-            # =================================================
-
-            ctk.CTkButton(
-                action_frame,
-                text="Delete",
-                width=65,
-                height=30,
-                fg_color="#DC2626",
-                hover_color="#B91C1C",
-                command=lambda rid=record_id,
-                           fname=name:
-                    self.delete_faculty_record(
-                        rid,
-                        fname
-                    )
-            ).pack(
-                side="left",
-                padx=(3, 7),
-                pady=6
-            )
-
-    # =====================================================
-    # VALIDATE FORM
-    # =====================================================
-
-    def validate_form(self):
-
-        faculty_id = (
-            self.faculty_id_entry
-            .get()
-            .strip()
-        )
-
-        name = (
-            self.name_entry
-            .get()
-            .strip()
-        )
-
-        department = (
-            self.department_entry
-            .get()
-            .strip()
-        )
-
-        email = (
-            self.email_entry
-            .get()
-            .strip()
-        )
-
-        phone = (
-            self.phone_entry
-            .get()
-            .strip()
-        )
-
-        # =================================================
-        # REQUIRED FIELDS
-        # =================================================
-
-        if not name:
-
-            messagebox.showwarning(
-                "Missing Information",
-                "Faculty Name is required.",
-                parent=self.window
-            )
-
-            self.name_entry.focus()
-
-            return None
-
-        if not department:
-
-            messagebox.showwarning(
-                "Missing Information",
-                "Department is required.",
-                parent=self.window
-            )
-
-            self.department_entry.focus()
-
-            return None
-
-        # =================================================
-        # EMAIL VALIDATION
-        # =================================================
-
-        if email:
-
-            email_pattern = (
-                r"^[A-Za-z0-9._%+-]+@"
-                r"[A-Za-z0-9.-]+\."
-                r"[A-Za-z]{2,}$"
-            )
-
-            if not re.match(
-                email_pattern,
-                email
-            ):
-
-                messagebox.showwarning(
-                    "Invalid Email",
-                    "Please enter a valid email address.",
-                    parent=self.window
-                )
-
-                self.email_entry.focus()
-
-                return None
-
-        # =================================================
-        # PHONE VALIDATION
-        # =================================================
-
-        if phone:
-
-            if not phone.isdigit():
-
-                messagebox.showwarning(
-                    "Invalid Phone",
-                    "Phone number must contain digits only.",
-                    parent=self.window
-                )
-
-                self.phone_entry.focus()
-
-                return None
-
-            if len(phone) != 10:
-
-                messagebox.showwarning(
-                    "Invalid Phone",
-                    "Phone number must contain exactly 10 digits.",
-                    parent=self.window
-                )
-
-                self.phone_entry.focus()
-
-                return None
-
-        return (
-            faculty_id or None,
-            name,
-            department,
-            email,
-            phone
-        )
-
-    # =====================================================
-    # ADD FACULTY
-    # =====================================================
-
-    def add_faculty_record(self):
-
-        data = self.validate_form()
-
-        if data is None:
-            return
-
-        (
-            faculty_id,
-            name,
-            department,
-            email,
-            phone
-        ) = data
-
-        success = add_faculty(
-            faculty_id,
-            name,
-            department,
-            email,
-            phone
-        )
-
-        if success:
-
-            messagebox.showinfo(
-                "Success",
-                "Faculty added successfully.",
-                parent=self.window
-            )
-
-            self.clear_form()
-            self.load_faculty()
-
-        else:
-
-            messagebox.showerror(
-                "Error",
-                (
-                    "Faculty ID already exists "
-                    "or the faculty could not be added."
-                ),
-                parent=self.window
-            )
-
-    # =====================================================
-    # SELECT FACULTY
-    # =====================================================
-
-    def select_record(self, record):
-
-        self.selected_id = record[0]
-
-        # Faculty ID
-        self.faculty_id_entry.delete(
-            0,
-            "end"
-        )
-
-        if record[1]:
-            self.faculty_id_entry.insert(
-                0,
-                record[1]
-            )
-
-        # Name
-        self.name_entry.delete(
-            0,
-            "end"
-        )
-
-        self.name_entry.insert(
-            0,
-            record[2]
-        )
-
-        # Department
-        self.department_entry.delete(
-            0,
-            "end"
-        )
-
-        self.department_entry.insert(
-            0,
-            record[3]
-        )
-
-        # Email
-        self.email_entry.delete(
-            0,
-            "end"
-        )
-
-        if record[4]:
-            self.email_entry.insert(
-                0,
-                record[4]
-            )
-
-        # Phone
-        self.phone_entry.delete(
-            0,
-            "end"
-        )
-
-        if record[5]:
-            self.phone_entry.insert(
-                0,
-                record[5]
-            )
-
-    # =====================================================
-    # UPDATE FACULTY
-    # =====================================================
-
-    def update_faculty_record(self):
-
-        if self.selected_id is None:
-
-            messagebox.showwarning(
-                "Select Faculty",
-                "Please select a faculty record first.",
-                parent=self.window
-            )
-
-            return
-
-        data = self.validate_form()
-
-        if data is None:
-            return
-
-        (
-            faculty_id,
-            name,
-            department,
-            email,
-            phone
-        ) = data
-
-        success = update_faculty(
-            self.selected_id,
-            faculty_id,
-            name,
-            department,
-            email,
-            phone
-        )
-
-        if success:
-
-            messagebox.showinfo(
-                "Success",
-                "Faculty updated successfully.",
-                parent=self.window
-            )
-
-            self.clear_form()
-            self.load_faculty()
-
-        else:
-
-            messagebox.showerror(
-                "Error",
-                (
-                    "Faculty ID already exists "
-                    "or the faculty could not be updated."
-                ),
-                parent=self.window
-            )
-
-    # =====================================================
-    # DELETE FACULTY
-    # =====================================================
-
-    def delete_faculty_record(
-        self,
-        record_id,
-        faculty_name
-    ):
-
-        confirm = messagebox.askyesno(
-            "Delete Faculty",
-            (
-                f'Are you sure you want to delete\n'
-                f'"{faculty_name}"?\n\n'
-                "All related workloads will also be removed."
-            ),
-            parent=self.window
-        )
-
-        if not confirm:
-            return
-
-        delete_faculty(record_id)
-
-        self.clear_form()
-        self.load_faculty()
-
-        messagebox.showinfo(
-            "Deleted",
-            (
-                f'Faculty "{faculty_name}" '
-                "deleted successfully."
-            ),
-            parent=self.window
-        )
-
-    # =====================================================
-    # OPEN FACULTY WORKLOAD MANAGEMENT
-    # =====================================================
-
-    def open_workload(self, faculty_id):
-
-        try:
-
-            from ui.assignments import AssignmentsWindow
-
-            if self.embedded and self.navigate:
-                self.navigate("assignments")
-                return
-
-            workload_window = AssignmentsWindow(
-                self.window,
-                preselected_faculty_id=faculty_id
-            )
-
-            return workload_window
-
-        except Exception as error:
-
-            messagebox.showerror(
-                "Unable to Open Workload",
-                (
-                    "Faculty Workload Management "
-                    "could not be opened.\n\n"
-                    f"{error}"
-                ),
-                parent=self.window
-            )
-
-            return None
-
-    # =====================================================
-    # SEARCH
-    # =====================================================
-
-    def search_records(self):
-
-        search_text = (
-            self.search_entry
-            .get()
-            .strip()
-        )
-
-        if not search_text:
-
-            self.load_faculty()
-
-            return
-
-        records = search_faculty(
-            search_text
-        )
-
-        self.display_records(records)
-
-    # =====================================================
-    # CLEAR
-    # =====================================================
+        row = selected_items[0].row()
+        if row < len(self.records_data):
+            rec = self.records_data[row]
+            self.selected_id = rec[0]
+            self.faculty_id_entry.setText(str(rec[1] or ""))
+            self.name_entry.setText(str(rec[2] or ""))
+            self.department_entry.setText(str(rec[3] or ""))
+            self.email_entry.setText(str(rec[4] or ""))
+            self.phone_entry.setText(str(rec[5] or ""))
+            self.designation_entry.setText(str(rec[6] or ""))
+            self.max_hours_entry.setText(str(rec[7] or "18"))
+            self.is_active_check.setChecked(bool(rec[8]))
 
     def clear_form(self):
-
         self.selected_id = None
+        self.faculty_id_entry.clear()
+        self.name_entry.clear()
+        self.department_entry.clear()
+        self.email_entry.clear()
+        self.phone_entry.clear()
+        self.designation_entry.clear()
+        self.max_hours_entry.setText("18")
+        self.is_active_check.setChecked(True)
+        self.table.clearSelection()
 
-        self.faculty_id_entry.delete(
-            0,
-            "end"
+    def validate_inputs(self):
+        name = self.name_entry.text().strip()
+        dept = self.department_entry.text().strip()
+        email = self.email_entry.text().strip()
+        phone = self.phone_entry.text().strip()
+        max_hrs_str = self.max_hours_entry.text().strip()
+
+        if not name:
+            QMessageBox.warning(self, "Validation Error", "Faculty Name is required.")
+            self.name_entry.setFocus()
+            return False
+
+        if not dept:
+            QMessageBox.warning(self, "Validation Error", "Department is required.")
+            self.department_entry.setFocus()
+            return False
+
+        if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            QMessageBox.warning(self, "Validation Error", "Please enter a valid email address.")
+            self.email_entry.setFocus()
+            return False
+
+        if phone and not re.match(r"^[0-9+\-()\s]{7,15}$", phone):
+            QMessageBox.warning(self, "Validation Error", "Please enter a valid phone number.")
+            self.phone_entry.setFocus()
+            return False
+
+        try:
+            max_hrs = int(max_hrs_str)
+            if max_hrs < 1 or max_hrs > 50:
+                raise ValueError()
+        except ValueError:
+            QMessageBox.warning(self, "Validation Error", "Max Hours must be an integer between 1 and 50.")
+            self.max_hours_entry.setFocus()
+            return False
+
+        return True
+
+    def add_faculty_record(self):
+        if not self.validate_inputs():
+            return
+
+        fid = self.faculty_id_entry.text().strip() or None
+        name = self.name_entry.text().strip()
+        dept = self.department_entry.text().strip()
+        email = self.email_entry.text().strip() or None
+        phone = self.phone_entry.text().strip() or None
+        desig = self.designation_entry.text().strip() or None
+        max_hrs = int(self.max_hours_entry.text().strip())
+        is_active = 1 if self.is_active_check.isChecked() else 0
+
+        success, msg = add_faculty(
+            faculty_id=fid,
+            name=name,
+            department=dept,
+            email=email,
+            phone=phone,
+            designation=desig,
+            max_hours_per_week=max_hrs,
+            is_active=is_active
         )
 
-        self.name_entry.delete(
-            0,
-            "end"
+        if success:
+            QMessageBox.information(self, "Success", "Faculty added successfully!")
+            self.clear_form()
+            self.load_faculty()
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to add faculty:\n{msg}")
+
+    def update_faculty_record(self):
+        if not self.selected_id:
+            QMessageBox.warning(self, "Update", "Please select a faculty member from the table to update.")
+            return
+
+        if not self.validate_inputs():
+            return
+
+        fid = self.faculty_id_entry.text().strip() or None
+        name = self.name_entry.text().strip()
+        dept = self.department_entry.text().strip()
+        email = self.email_entry.text().strip() or None
+        phone = self.phone_entry.text().strip() or None
+        desig = self.designation_entry.text().strip() or None
+        max_hrs = int(self.max_hours_entry.text().strip())
+        is_active = 1 if self.is_active_check.isChecked() else 0
+
+        success, msg = update_faculty(
+            faculty_db_id=self.selected_id,
+            faculty_id=fid,
+            name=name,
+            department=dept,
+            email=email,
+            phone=phone,
+            designation=desig,
+            max_hours_per_week=max_hrs,
+            is_active=is_active
         )
 
-        self.department_entry.delete(
-            0,
-            "end"
+        if success:
+            QMessageBox.information(self, "Success", "Faculty updated successfully!")
+            self.clear_form()
+            self.load_faculty()
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to update faculty:\n{msg}")
+
+    def delete_faculty_record(self):
+        if not self.selected_id:
+            QMessageBox.warning(self, "Delete", "Please select a faculty member from the table to delete.")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete '{self.name_entry.text().strip()}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        self.email_entry.delete(
-            0,
-            "end"
-        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            success, msg = delete_faculty(self.selected_id)
+            if success:
+                QMessageBox.information(self, "Deleted", "Faculty deleted successfully.")
+                self.clear_form()
+                self.load_faculty()
+            else:
+                QMessageBox.critical(self, "Error", f"Failed to delete faculty:\n{msg}")
 
-        self.phone_entry.delete(
-            0,
-            "end"
-        )
+    def search_records(self, text):
+        query = text.strip()
+        if not query:
+            self.load_faculty()
+        else:
+            records = search_faculty(query) or []
+            self.load_faculty(records)
 
-    # =====================================================
-    # RUN
-    # =====================================================
-
-    def run(self):
-
-        self.window.mainloop()
-
-
-# =========================================================
-# STANDALONE TEST
-# =========================================================
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    from ui.theme import apply_theme
 
-    app = FacultyWindow()
-    app.run()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = FacultyWindow()
+    win.show()
+    sys.exit(app.exec())

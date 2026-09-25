@@ -256,7 +256,8 @@ def _get_year_group(
 # ============================================================
 
 def _assign_free_days(
-    class_info
+    class_info,
+    randomized=False
 ):
     """
     Assigns exactly one FREE Day Order to each class.
@@ -305,11 +306,14 @@ def _assign_free_days(
 
     for year_group, class_ids in classes_by_year.items():
 
-        # Deterministic allocation: distribute free days evenly (Day 6, Day 5, ...)
-        available_days = list(range(DAY_ORDERS, 0, -1))
-
-        # Sort classes deterministically by ID
-        sorted_classes = sorted(class_ids)
+        if randomized:
+            available_days = list(range(1, DAY_ORDERS + 1))
+            random.shuffle(available_days)
+            sorted_classes = list(class_ids)
+            random.shuffle(sorted_classes)
+        else:
+            available_days = list(range(DAY_ORDERS, 0, -1))
+            sorted_classes = sorted(class_ids)
 
         for class_id in sorted_classes:
             free_days[class_id] = available_days.pop(0) if available_days else 6
@@ -765,7 +769,8 @@ def _schedule_class(
     class_id,
     class_tasks,
     free_day,
-    faculty_busy
+    faculty_busy,
+    mode="efficient"
 ):
     """
     Schedules exactly one class.
@@ -774,11 +779,15 @@ def _schedule_class(
     the SAME Day Order + Period.
 
     Only faculty conflicts are checked globally.
+    Supports 'efficient' (structured constraint optimization) and 'random' (varied stochastic) modes.
     """
-
+    is_random = (mode == "random")
     teaching_slots = _get_class_teaching_slots(
         free_day
     )
+    if is_random:
+        teaching_slots = list(teaching_slots)
+        random.shuffle(teaching_slots)
 
     # -----------------------------------------------
     # Local class schedule.
@@ -796,21 +805,21 @@ def _schedule_class(
         class_tasks
     )
 
-    # Sort deterministically: Important first, then higher periods/week, then subject ID
-    remaining_tasks.sort(
-        key=lambda t: (
-            0 if str(t.get("priority", "")).strip().lower() == "important" else 1,
-            -int(t.get("periods_per_week", 0)),
-            int(t.get("subject_id", 0)),
-            int(t.get("task_id", 0))
+    if is_random:
+        random.shuffle(remaining_tasks)
+    else:
+        # Sort deterministically: Important first, then higher periods/week, then subject ID
+        remaining_tasks.sort(
+            key=lambda t: (
+                0 if str(t.get("priority", "")).strip().lower() == "important" else 1,
+                -int(t.get("periods_per_week", 0)),
+                int(t.get("subject_id", 0)),
+                int(t.get("task_id", 0))
+            )
         )
-    )
 
     # -----------------------------------------------
     # Recursive backtracking.
-    #
-    # This is much safer than simply trying one
-    # random slot and giving up.
     # -----------------------------------------------
 
     def backtrack(
@@ -859,15 +868,17 @@ def _schedule_class(
                 ):
                     continue
 
+                base_score = _score_candidate(
+                    task,
+                    day_order,
+                    period,
+                    class_schedule
+                )
+                score = base_score + (random.randint(-400, 400) if is_random else 0)
+
                 candidates.append(
                     (
-                        _score_candidate(
-                            task,
-                            day_order,
-                            period,
-                            class_schedule
-                        ),
-
+                        score,
                         day_order,
                         period
                     )
@@ -936,10 +947,6 @@ def _schedule_class(
 
         # -------------------------------------------
         # Keep top candidates.
-        #
-        # Since the class has only 29 slots, this
-        # remains fast while still allowing
-        # backtracking.
         # -------------------------------------------
 
         candidate_limit = min(
@@ -947,11 +954,13 @@ def _schedule_class(
             12
         )
 
-        selected_candidates = (
+        selected_candidates = list(
             best_candidates[
                 :candidate_limit
             ]
         )
+        if is_random:
+            random.shuffle(selected_candidates)
 
         # -------------------------------------------
         # Try candidates.
@@ -1082,7 +1091,8 @@ def _schedule_class(
 def _generate_once(
     tasks,
     class_info,
-    free_days
+    free_days,
+    mode="efficient"
 ):
     """
     Generates one complete timetable.
@@ -1185,21 +1195,24 @@ def _generate_once(
         ] = score
 
     # -----------------------------------------------
-    # Randomize ties.
+    # Randomize ties or class order based on mode.
     # -----------------------------------------------
 
     class_ids = list(
         tasks_by_class.keys()
     )
 
-    # Sort deterministically by constraint tightness score descending, break ties with class_id
-    class_ids.sort(
-        key=lambda cid: (
-            class_priority.get(cid, 0),
-            -cid
-        ),
-        reverse=True
-    )
+    if mode == "random":
+        random.shuffle(class_ids)
+    else:
+        # Sort deterministically by constraint tightness score descending, break ties with class_id
+        class_ids.sort(
+            key=lambda cid: (
+                class_priority.get(cid, 0),
+                -cid
+            ),
+            reverse=True
+        )
 
     # -----------------------------------------------
     # GLOBAL FACULTY BUSY SET
@@ -1227,7 +1240,8 @@ def _generate_once(
             free_days[
                 class_id
             ],
-            faculty_busy
+            faculty_busy,
+            mode=mode
         )
 
         if result is None:
@@ -1563,10 +1577,11 @@ def _save_timetable(
 
 def generate_timetable(
     max_attempts=300,
-    target_class_id=None
+    target_class_id=None,
+    mode="efficient"
 ):
     if target_class_id is not None:
-        return generate_timetable_for_class(target_class_id, max_attempts=max_attempts)
+        return generate_timetable_for_class(target_class_id, max_attempts=max_attempts, mode=mode)
     """
     Main timetable generation function.
 
@@ -1928,7 +1943,8 @@ def generate_timetable(
         # -----------------------------------------------
 
         free_days = _assign_free_days(
-            class_info
+            class_info,
+            randomized=(mode == "random")
         )
 
         if free_days is None:
@@ -1942,7 +1958,8 @@ def generate_timetable(
         timetable = _generate_once(
             tasks,
             class_info,
-            free_days
+            free_days,
+            mode=mode
         )
 
         if timetable is None:
@@ -2081,7 +2098,9 @@ def get_timetable_by_class(
                 s.subject_code,
                 s.subject_name,
 
-                f.name AS faculty_name
+                f.name AS faculty_name,
+                c.semester AS class_semester,
+                s.semester AS subject_semester
 
             FROM timetable t
 
@@ -2139,7 +2158,9 @@ def get_timetable_by_faculty(
                 c.class_name,
 
                 s.subject_code,
-                s.subject_name
+                s.subject_name,
+                c.semester AS class_semester,
+                s.semester AS subject_semester
 
             FROM timetable t
 
@@ -2214,7 +2235,8 @@ create_timetable_table()
 
 def generate_timetable_for_class(
     target_class_id,
-    max_attempts=300
+    max_attempts=300,
+    mode="efficient"
 ):
     """
     Generates or regenerates timetable for a single specific class.
@@ -2329,15 +2351,20 @@ def generate_timetable_for_class(
     if not available_free_days:
         available_free_days = list(range(1, DAY_ORDERS + 1))
 
+    if mode == "random":
+        available_free_days = list(available_free_days)
+        random.shuffle(available_free_days)
+
     for attempt in range(1, max_attempts + 1):
-        free_day = available_free_days[0]
+        free_day = available_free_days[attempt % len(available_free_days)]
         faculty_busy = set(existing_faculty_busy)
 
         class_result = _schedule_class(
             target_class_id,
             tasks,
             free_day,
-            faculty_busy
+            faculty_busy,
+            mode=mode
         )
 
         if class_result is None:

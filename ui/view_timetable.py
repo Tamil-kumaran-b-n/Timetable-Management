@@ -1,2231 +1,536 @@
+"""
+View and Export Timetable Window & Embedded Widget in PySide6.
+Supports interactive weekly grid, PDF generation (ReportLab / Qt PDF), and CSV export.
+"""
+
+import csv
+import os
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
-from tkinter import messagebox
-
-import customtkinter as ctk
-
-from database.database import (
-    get_all_faculty,
-    get_all_classes
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QColor
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QFrame, QScrollArea, QFileDialog, QRadioButton, QButtonGroup,
+    QDialog
 )
 
+from database.database import get_all_faculty, get_all_classes
 from database.generator import (
-    create_timetable_table,
     get_timetable_by_class,
     get_timetable_by_faculty,
-    get_all_timetable
+    get_all_timetable,
+    clear_timetable
 )
+from ui.theme import get_active_palette
 
 
-class ViewTimetableWindow:
-
-    def __init__(self, parent, container=None, faculty_user=None):
-
-        self.parent = parent
+class ViewTimetableWindow(QWidget):
+    def __init__(self, parent=None, container=None, faculty_user=None):
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.embedded = container is not None
         self.faculty_user = faculty_user
 
-        self.window = container if self.embedded else ctk.CTkToplevel(parent)
-
-        if not self.embedded:
-            self.window.title("View Timetable")
-            self.window.geometry("1280x800")
-            self.window.minsize(1100, 700)
-            self.window.transient(parent)
-
-        # ==================================================
-        # DATA
-        # ==================================================
+        self.current_mode = "class" if not faculty_user else "faculty"
+        self.current_id = None
+        self.current_timetable_data = []
 
         self.faculty_records = []
         self.class_records = []
 
-        # Only classes/faculty that actually have
-        # generated timetable entries
-        self.generated_class_records = []
-        self.generated_faculty_records = []
+        if not self.embedded:
+            self.setWindowTitle("View Timetable - Smart Academic Timetable Management System")
+            self.resize(1280, 800)
+            self.setMinimumSize(1100, 700)
 
-        self.current_mode = "class"
-
-        self.current_id = None
-
-        self.current_timetable_data = []
-
-        # ==================================================
-        # BUILD
-        # ==================================================
-
-        self.build_ui()
-
+        self.setup_ui()
         self.load_dropdowns()
 
-        self.check_timetable()
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-        if not self.embedded:
-            self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-    # ======================================================
-    # MAIN UI
-    # ======================================================
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-    def build_ui(self):
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll_content.setMinimumWidth(850)
+        scroll.setWidget(scroll_content)
 
-        self.main_frame = ctk.CTkScrollableFrame(
-            self.window,
-            fg_color="transparent"
-        )
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
 
-        self.main_frame.pack(
-            fill="both",
-            expand=True,
-            padx=24,
-            pady=18
-        )
-
-        # ==================================================
+        # =====================================================
         # HEADER
-        # ==================================================
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        header_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        title_str = "My Teaching Timetable" if self.faculty_user else "View Timetable Schedule"
+        lbl_title = QLabel(title_str)
+        lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        sub_str = "View your weekly schedule and download PDF copy" if self.faculty_user else "View weekly schedules by class or faculty and export to PDF / CSV"
+        lbl_sub = QLabel(sub_str)
+        lbl_sub.setProperty("secondary", True)
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        header_frame.pack(
-            fill="x",
-            pady=(0, 14)
-        )
+        # Export Buttons
+        btn_pdf = QPushButton("Download PDF")
+        btn_pdf.setProperty("btnStyle", "primary")
+        btn_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_pdf.clicked.connect(self.download_pdf)
+        header_layout.addWidget(btn_pdf)
 
-        ctk.CTkLabel(
-            header_frame,
-            text="View Timetable",
-            font=ctk.CTkFont(
-                size=28,
-                weight="bold"
-            )
-        ).pack(
-            anchor="w"
-        )
+        btn_csv = QPushButton("Export CSV")
+        btn_csv.setProperty("btnStyle", "secondary")
+        btn_csv.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_csv.clicked.connect(self.export_csv)
+        header_layout.addWidget(btn_csv)
 
-        ctk.CTkLabel(
-            header_frame,
-            text=(
-                "View the generated timetable by class "
-                "or faculty and download it as a structured PDF."
-            ),
-            font=ctk.CTkFont(
-                size=14
-            ),
-            text_color="gray"
-        ).pack(
-            anchor="w",
-            pady=(4, 0)
-        )
+        if not self.faculty_user:
+            btn_clear = QPushButton("Clear All")
+            btn_clear.setProperty("btnStyle", "outline-danger")
+            btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_clear.clicked.connect(self.clear_all_timetables)
+            header_layout.addWidget(btn_clear)
 
-        # ==================================================
-        # VIEW MODE
-        # ==================================================
+        main_layout.addWidget(header_card)
 
-        mode_frame = ctk.CTkFrame(
-            self.main_frame,
-            corner_radius=12
-        )
+        # =====================================================
+        # FILTER / SELECTION CARD
+        # =====================================================
+        filter_card = QFrame()
+        filter_card.setObjectName("Card")
+        filter_layout = QHBoxLayout(filter_card)
+        filter_layout.setContentsMargins(25, 16, 25, 16)
+        filter_layout.setSpacing(20)
 
-        if not getattr(self, "faculty_user", None):
-            mode_frame.pack(
-                fill="x",
-                pady=(0, 12)
-            )
+        if not self.faculty_user:
+            mode_box = QHBoxLayout()
+            mode_box.setSpacing(15)
+            self.radio_class = QRadioButton("View by Class")
+            self.radio_class.setChecked(True)
+            self.radio_class.toggled.connect(self.on_mode_change)
 
-        ctk.CTkLabel(
-            mode_frame,
-            text="View By",
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            )
-        ).pack(
-            side="left",
-            padx=(18, 10),
-            pady=14
-        )
+            self.radio_faculty = QRadioButton("View by Faculty")
+            self.radio_faculty.toggled.connect(self.on_mode_change)
 
-        self.class_mode_button = ctk.CTkButton(
-            mode_frame,
-            text="Class View",
-            width=130,
-            height=38,
-            command=self.show_class_view
-        )
+            self.mode_group = QButtonGroup(self)
+            self.mode_group.addButton(self.radio_class)
+            self.mode_group.addButton(self.radio_faculty)
 
-        self.class_mode_button.pack(
-            side="left",
-            padx=5,
-            pady=10
-        )
+            mode_box.addWidget(self.radio_class)
+            mode_box.addWidget(self.radio_faculty)
+            filter_layout.addLayout(mode_box)
+            filter_layout.addSpacing(15)
 
-        self.faculty_mode_button = ctk.CTkButton(
-            mode_frame,
-            text="Faculty View",
-            width=130,
-            height=38,
-            fg_color="gray",
-            hover_color="#555555",
-            command=self.show_faculty_view
-        )
+        # Selector Dropdown
+        self.lbl_target = QLabel("Select Class:")
+        self.lbl_target.setStyleSheet("font-weight: 600;")
+        filter_layout.addWidget(self.lbl_target)
 
-        self.faculty_mode_button.pack(
-            side="left",
-            padx=5,
-            pady=10
-        )
+        self.target_combo = QComboBox()
+        self.target_combo.setMinimumWidth(320)
+        self.target_combo.currentIndexChanged.connect(self.load_timetable_grid)
+        filter_layout.addWidget(self.target_combo)
 
-        # ==================================================
-        # SELECTION AREA
-        # ==================================================
+        btn_refresh = QPushButton("Refresh")
+        btn_refresh.setProperty("btnStyle", "secondary")
+        btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_refresh.clicked.connect(self.load_timetable_grid)
+        filter_layout.addWidget(btn_refresh)
 
-        self.selection_frame = ctk.CTkFrame(
-            self.main_frame,
-            corner_radius=12
-        )
+        filter_layout.addStretch()
+        main_layout.addWidget(filter_card)
 
-        self.selection_frame.pack(
-            fill="x",
-            pady=(0, 12)
-        )
+        # =====================================================
+        # TIMETABLE GRID CARD
+        # =====================================================
+        self.grid_card = QFrame()
+        self.grid_card.setObjectName("Card")
+        self.grid_card_layout = QVBoxLayout(self.grid_card)
+        self.grid_card_layout.setContentsMargins(25, 20, 25, 25)
+        self.grid_card_layout.setSpacing(15)
 
-        self.selection_label = ctk.CTkLabel(
-            self.selection_frame,
-            text="Select Class",
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            )
-        )
+        # Title of the currently displayed timetable
+        self.lbl_grid_title = QLabel("Timetable Schedule")
+        self.lbl_grid_title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.grid_card_layout.addWidget(self.lbl_grid_title)
 
-        self.selection_label.pack(
-            side="left",
-            padx=(18, 10),
-            pady=14
-        )
+        # Table Grid for Schedule
+        self.grid_table = QTableWidget()
+        self.grid_table.setRowCount(6)
+        self.grid_table.setColumnCount(6)
+        self.grid_table.setHorizontalHeaderLabels([
+            "Day Order", "Period 1\n09:00 - 10:00", "Period 2\n10:00 - 11:00",
+            "Period 3\n11:15 - 12:15", "Period 4\n01:00 - 02:00", "Period 5\n02:00 - 03:00"
+        ])
+        self.grid_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.grid_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.grid_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.grid_table.verticalHeader().setVisible(False)
+        self.grid_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.grid_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.grid_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.grid_table.setMinimumHeight(480)
+        self.grid_card_layout.addWidget(self.grid_table)
 
-        self.selection_menu = ctk.CTkOptionMenu(
-            self.selection_frame,
-            width=380,
-            height=40,
-            command=self.selection_changed
-        )
-
-        self.selection_menu.pack(
-            side="left",
-            padx=5,
-            pady=10
-        )
-
-        # ==================================================
-        # DOWNLOAD PDF
-        # ==================================================
-
-        self.download_button = ctk.CTkButton(
-            self.selection_frame,
-            text="Download PDF",
-            width=130,
-            height=40,
-            command=self.download_pdf,
-            state="disabled"
-        )
-
-        self.download_button.pack(
-            side="right",
-            padx=(8, 18),
-            pady=10
-        )
-
-        # ==================================================
-        # REFRESH
-        # ==================================================
-
-        self.refresh_button = ctk.CTkButton(
-            self.selection_frame,
-            text="Refresh",
-            width=100,
-            height=40,
-            fg_color="gray",
-            hover_color="#555555",
-            command=self.refresh_timetable
-        )
-
-        self.refresh_button.pack(
-            side="right",
-            padx=8,
-            pady=10
-        )
-
-        # ==================================================
-        # CURRENT TITLE
-        # ==================================================
-
-        self.current_title = ctk.CTkLabel(
-            self.main_frame,
-            text="",
-            font=ctk.CTkFont(
-                size=20,
-                weight="bold"
-            )
-        )
-
-        self.current_title.pack(
-            anchor="w",
-            pady=(0, 8)
-        )
-
-        # ==================================================
-        # TIMETABLE GRID
-        # ==================================================
-
-        self.grid_container = ctk.CTkFrame(
-            self.main_frame,
-            corner_radius=12
-        )
-
-        self.grid_container.pack(
-            fill="both",
-            expand=True
-        )
-
-    # ======================================================
-    # LOAD DATABASE DATA
-    # ======================================================
+        main_layout.addWidget(self.grid_card)
+        main_layout.addStretch()
 
     def load_dropdowns(self):
-
-        try:
-
-            self.faculty_records = (
-                get_all_faculty()
-                or []
-            )
-
-            self.class_records = (
-                get_all_classes()
-                or []
-            )
-
-        except Exception as error:
-
-            self.faculty_records = []
-            self.class_records = []
-
-            messagebox.showerror(
-                "Database Error",
-                (
-                    "Unable to load classes/faculty.\n\n"
-                    f"{error}"
-                ),
-                parent=self.window
-            )
-
-        # Build ONLY generated lists
-        self.build_generated_class_list()
-        self.build_generated_faculty_list()
-
-    # ======================================================
-    # FIND GENERATED CLASSES
-    # ======================================================
-
-    def build_generated_class_list(self):
-
-        self.generated_class_records = []
-        try:
-            from database.database import get_connection
-            conn = get_connection()
-            cursor = conn.execute("SELECT DISTINCT class_id FROM timetable")
-            active_ids = {r[0] for r in cursor.fetchall()}
-            conn.close()
-        except Exception:
-            active_ids = set()
-
-        for record in self.class_records:
-            if record and record[0] in active_ids:
-                self.generated_class_records.append(record)
-
-    # ======================================================
-    # FIND GENERATED FACULTY
-    # ======================================================
-
-    def build_generated_faculty_list(self):
-
-        self.generated_faculty_records = []
-        try:
-            from database.database import get_connection
-            conn = get_connection()
-            cursor = conn.execute("SELECT DISTINCT faculty_id FROM timetable")
-            active_ids = {r[0] for r in cursor.fetchall()}
-            conn.close()
-        except Exception:
-            active_ids = set()
-
-        for record in self.faculty_records:
-            if record and record[0] in active_ids:
-                self.generated_faculty_records.append(record)
-
-    # ======================================================
-    # CHECK GENERATED TIMETABLE
-    # ======================================================
-
-    def check_timetable(self):
-
-        try:
-
-            timetable = (
-                get_all_timetable()
-                or []
-            )
-
-            if not timetable:
-
-                self.current_id = None
-
-                self.current_timetable_data = []
-
-                self.download_button.configure(
-                    state="disabled"
-                )
-
-                self.selection_menu.configure(
-                    state="disabled"
-                )
-
-                self.show_empty_message(
-                    "No timetable has been generated yet."
-                )
-
-                return
-
-            # ------------------------------------------
-            # Rebuild generated-only lists
-            # ------------------------------------------
-
-            self.build_generated_class_list()
-
-            self.build_generated_faculty_list()
-
-            self.selection_menu.configure(
-                state="normal"
-            )
-
-            if getattr(self, "faculty_user", None):
-                self.show_faculty_view()
-            else:
-                self.show_class_view()
-
-        except Exception as error:
-
-            self.current_id = None
-
-            self.current_timetable_data = []
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "Unable to load timetable."
-            )
-
-            messagebox.showerror(
-                "Timetable Error",
-                (
-                    "Unable to load timetable.\n\n"
-                    f"{error}"
-                ),
-                parent=self.window
-            )
-
-    # ======================================================
-    # CLASS VIEW
-    # ======================================================
-
-    def show_class_view(self):
-
-        self.current_mode = "class"
-
-        self.class_mode_button.configure(
-            fg_color=ctk.ThemeManager.theme[
-                "CTkButton"
-            ][
-                "fg_color"
-            ]
-        )
-
-        self.faculty_mode_button.configure(
-            fg_color="gray",
-            hover_color="#555555"
-        )
-
-        self.selection_label.configure(
-            text="Select Class"
-        )
-
-        self.load_class_dropdown()
-
-        selected = self.selection_menu.get()
-
-        if selected.startswith("No "):
-
-            self.current_id = None
-
-            self.current_timetable_data = []
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "No generated classes available."
-            )
-
-            return
-
-        self.selection_changed(
-            selected
-        )
-
-    # ======================================================
-    # FACULTY VIEW
-    # ======================================================
-
-    def show_faculty_view(self):
-
-        self.current_mode = "faculty"
-
-        self.faculty_mode_button.configure(
-            fg_color=ctk.ThemeManager.theme[
-                "CTkButton"
-            ][
-                "fg_color"
-            ]
-        )
-
-        self.class_mode_button.configure(
-            fg_color="gray",
-            hover_color="#555555"
-        )
-
-        self.selection_label.configure(
-            text="Select Faculty"
-        )
-
-        self.load_faculty_dropdown()
-
-        selected = self.selection_menu.get()
-
-        if selected.startswith("No "):
-
-            self.current_id = None
-
-            self.current_timetable_data = []
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "No generated faculty available."
-            )
-
-            return
-
-        self.selection_changed(
-            selected
-        )
-
-    # ======================================================
-    # LOAD ONLY GENERATED CLASSES
-    # ======================================================
-
-    def load_class_dropdown(self):
-
-        # --------------------------------------------------
-        # IMPORTANT:
-        # Use generated_class_records instead of
-        # class_records.
-        # --------------------------------------------------
-
-        records = (
-            self.generated_class_records
-        )
-
-        if not records:
-
-            self.selection_menu.configure(
-                values=[
-                    "No Generated Classes"
-                ]
-            )
-
-            self.selection_menu.set(
-                "No Generated Classes"
-            )
-
-            return
-
-        values = []
-
-        for record in records:
-
-            class_name = (
-                record[1]
-                if len(record) > 1
-                else ""
-            )
-
-            department = (
-                record[2]
-                if len(record) > 2
-                else ""
-            )
-
-            semester = (
-                record[3]
-                if len(record) > 3
-                else ""
-            )
-
-            values.append(
-                f"{class_name} | "
-                f"{department} | "
-                f"Sem {semester}"
-            )
-
-        self.selection_menu.configure(
-            values=values
-        )
-
-        if (
-            self.selection_menu.get()
-            not in values
-        ):
-
-            self.selection_menu.set(
-                values[0]
-            )
-
-    # ======================================================
-    # LOAD ONLY GENERATED FACULTY
-    # ======================================================
-
-    def load_faculty_dropdown(self):
-
-        records = (
-            self.generated_faculty_records
-        )
-
-        if not records:
-
-            self.selection_menu.configure(
-                values=[
-                    "No Generated Faculty"
-                ]
-            )
-
-            self.selection_menu.set(
-                "No Generated Faculty"
-            )
-
-            return
-
-        values = []
-
-        for record in records:
-
-            faculty_code = (
-                record[1]
-                if len(record) > 1
-                else ""
-            )
-
-            faculty_name = (
-                record[2]
-                if len(record) > 2
-                else ""
-            )
-
-            if faculty_code:
-                values.append(f"{faculty_name} ({faculty_code})")
-            else:
-                values.append(faculty_name)
-
-        if getattr(self, "faculty_user", None):
-            uname = self.faculty_user.get("username", "").strip().lower()
-            matched_val = None
-            for idx, record in enumerate(records):
-                f_code = record[1].lower() if len(record) > 1 and record[1] else ""
-                f_name = record[2].lower() if len(record) > 2 and record[2] else ""
-                if uname in [f_name, f_code, f_code.replace("fac-", "")]:
-                    matched_val = values[idx]
+        self.class_records = get_all_classes() or []
+        self.faculty_records = get_all_faculty() or []
+
+        self.update_target_combo()
+
+    def on_mode_change(self):
+        self.current_mode = "class" if self.radio_class.isChecked() else "faculty"
+        self.update_target_combo()
+
+    def update_target_combo(self):
+        self.target_combo.blockSignals(True)
+        self.target_combo.clear()
+
+        if self.faculty_user:
+            self.current_mode = "faculty"
+            self.lbl_target.setText("Faculty:")
+            fac_user_id = self.faculty_user.get("id")
+            fac_id = self.faculty_user.get("faculty_id")
+            fac_code = self.faculty_user.get("faculty_code")
+            fac_full_name = self.faculty_user.get("full_name") or ""
+            fac_username = self.faculty_user.get("username", "")
+
+            matched_fac = None
+            for f in self.faculty_records:
+                # f: (id, faculty_code, name, department, email)
+                if fac_id is not None and f[0] == fac_id:
+                    matched_fac = f
+                    break
+                if fac_code and str(f[1]).strip().lower() == str(fac_code).strip().lower():
+                    matched_fac = f
+                    break
+                if fac_full_name and str(f[2]).strip().lower() == str(fac_full_name).strip().lower():
+                    matched_fac = f
+                    break
+                if fac_username and (str(f[1]).strip().lower() == str(fac_username).strip().lower() or str(f[2]).strip().lower() == str(fac_username).strip().lower()):
+                    matched_fac = f
                     break
 
-            if matched_val:
-                self.selection_menu.configure(values=[matched_val], state="disabled")
-                self.selection_menu.set(matched_val)
-                self.selection_label.configure(text="Faculty Member:")
+            if matched_fac:
+                self.target_combo.addItem(f"{matched_fac[2]} ({matched_fac[3]})", matched_fac[0])
             else:
-                self.selection_menu.configure(values=["No Schedule Generated"], state="disabled")
-                self.selection_menu.set("No Schedule Generated")
-                self.selection_label.configure(text="Faculty Member:")
+                display_name = fac_full_name or fac_username or "Faculty"
+                self.target_combo.addItem(display_name, fac_id if fac_id is not None else fac_user_id)
+        elif self.current_mode == "class":
+            self.lbl_target.setText("Select Class:")
+            for c in self.class_records:
+                cid = c[0]
+                cname = c[1]
+                dept = c[2] if len(c) > 2 else ""
+                sem = c[3] if len(c) > 3 else ""
+                self.target_combo.addItem(f"{cname} • {dept} (Sem {sem})", cid)
         else:
-            self.selection_menu.configure(values=values, state="normal")
-            if self.selection_menu.get() not in values:
-                self.selection_menu.set(values[0])
+            self.lbl_target.setText("Select Faculty:")
+            for f in self.faculty_records:
+                fid = f[0]
+                fcode = f[1] if len(f) > 1 else ""
+                fname = f[2] if len(f) > 2 else ""
+                dept = f[3] if len(f) > 3 else ""
+                self.target_combo.addItem(f"{fname} ({dept}) • {fcode}", fid)
 
-    # ======================================================
-    # SELECTION CHANGED
-    # ======================================================
+        self.target_combo.blockSignals(False)
+        self.load_timetable_grid()
 
-    def selection_changed(
-        self,
-        selected_value
-    ):
-
-        if (
-            not selected_value
-            or selected_value.startswith("No ")
-        ):
-
+    def load_timetable_grid(self):
+        if self.target_combo.count() == 0:
+            self.render_empty_grid("No records available to display.")
             return
 
-        try:
+        target_id = self.target_combo.currentData()
+        self.current_id = target_id
 
-            if self.current_mode == "class":
-
-                index = (
-                    self.find_class_index(
-                        selected_value
-                    )
-                )
-
-                if index is None:
-                    return
-
-                generated_records = (
-                    self.generated_class_records
-                )
-
-                class_id = (
-                    generated_records[index][0]
-                )
-
-                self.current_id = class_id
-
-                self.display_class_timetable(
-                    class_id
-                )
-
-            else:
-
-                index = (
-                    self.find_faculty_index(
-                        selected_value
-                    )
-                )
-
-                if index is None:
-                    return
-
-                generated_records = (
-                    self.generated_faculty_records
-                )
-
-                faculty_id = (
-                    generated_records[index][0]
-                )
-
-                self.current_id = faculty_id
-
-                self.display_faculty_timetable(
-                    faculty_id
-                )
-
-        except Exception as error:
-
-            self.current_id = None
-
-            self.current_timetable_data = []
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "Unable to display timetable."
-            )
-
-            messagebox.showerror(
-                "Display Error",
-                str(error),
-                parent=self.window
-            )
-
-    # ======================================================
-    # FIND CLASS INDEX
-    # ======================================================
-
-    def find_class_index(
-        self,
-        selected_value
-    ):
-
-        records = (
-            self.generated_class_records
-        )
-
-        for index, record in enumerate(
-            records
-        ):
-
-            class_name = (
-                record[1]
-                if len(record) > 1
-                else ""
-            )
-
-            department = (
-                record[2]
-                if len(record) > 2
-                else ""
-            )
-
-            semester = (
-                record[3]
-                if len(record) > 3
-                else ""
-            )
-
-            display_name = (
-                f"{class_name} | "
-                f"{department} | "
-                f"Sem {semester}"
-            )
-
-            if (
-                display_name
-                == selected_value
-            ):
-
-                return index
-
-        return None
-
-    # ======================================================
-    # FIND FACULTY INDEX
-    # ======================================================
-
-    def find_faculty_index(
-        self,
-        selected_value
-    ):
-
-        records = (
-            self.generated_faculty_records
-        )
-
-        for index, record in enumerate(
-            records
-        ):
-
-            faculty_code = (
-                record[1]
-                if len(record) > 1
-                else ""
-            )
-
-            faculty_name = (
-                record[2]
-                if len(record) > 2
-                else ""
-            )
-
-            if faculty_code:
-
-                display_name = (
-                    f"{faculty_name} "
-                    f"({faculty_code})"
-                )
-
-            else:
-
-                display_name = (
-                    faculty_name
-                )
-
-            if (
-                display_name
-                == selected_value
-            ):
-
-                return index
-
-        return None
-
-    # ======================================================
-    # DISPLAY CLASS TIMETABLE
-    # ======================================================
-
-    def display_class_timetable(
-        self,
-        class_id
-    ):
-
-        data = (
-            get_timetable_by_class(
-                class_id
-            )
-            or []
-        )
-
-        self.current_id = class_id
-
-        self.current_timetable_data = data
-
-        self.current_title.configure(
-            text=self.get_class_title(
-                class_id
-            )
-        )
-
-        if not data:
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "No timetable entries found for this class."
-            )
-
+        if not target_id:
+            self.render_empty_grid("Please select a valid class or faculty member.")
             return
-
-        self.download_button.configure(
-            state="normal"
-        )
-
-        self.draw_grid()
-
-        timetable_map = {}
-
-        for row in data:
-
-            timetable_map[
-                (
-                    row[0],
-                    row[1]
-                )
-            ] = {
-                "subject_code": row[3],
-                "subject_name": row[4],
-                "faculty_name": row[5]
-            }
-
-        self.fill_grid(
-            timetable_map,
-            mode="class"
-        )
-
-    # ======================================================
-    # DISPLAY FACULTY TIMETABLE
-    # ======================================================
-
-    def display_faculty_timetable(
-        self,
-        faculty_id
-    ):
-
-        data = (
-            get_timetable_by_faculty(
-                faculty_id
-            )
-            or []
-        )
-
-        self.current_id = faculty_id
-
-        self.current_timetable_data = data
-
-        self.current_title.configure(
-            text=self.get_faculty_title(
-                faculty_id
-            )
-        )
-
-        if not data:
-
-            self.download_button.configure(
-                state="disabled"
-            )
-
-            self.show_empty_message(
-                "No timetable entries found for this faculty."
-            )
-
-            return
-
-        self.download_button.configure(
-            state="normal"
-        )
-
-        self.draw_grid()
-
-        timetable_map = {}
-
-        for row in data:
-
-            timetable_map[
-                (
-                    row[0],
-                    row[1]
-                )
-            ] = {
-                "faculty_name": row[2],
-                "class_name": row[3],
-                "subject_code": row[4],
-                "subject_name": row[5]
-            }
-
-        self.fill_grid(
-            timetable_map,
-            mode="faculty"
-        )
-
-    # ======================================================
-    # DRAW GRID
-    # ======================================================
-
-    def draw_grid(self):
-
-        for widget in (
-            self.grid_container.winfo_children()
-        ):
-
-            widget.destroy()
-
-        self.grid_container.grid_columnconfigure(
-            0,
-            weight=0
-        )
-
-        for column in range(1, 6):
-
-            self.grid_container.grid_columnconfigure(
-                column,
-                weight=1,
-                uniform="timetable_column"
-            )
-
-        for row in range(0, 7):
-
-            self.grid_container.grid_rowconfigure(
-                row,
-                weight=0,
-                minsize=58 if row == 0 else 82
-            )
-
-        self._make_header_cell(
-            "Day Order",
-            0,
-            0,
-            width=110
-        )
-
-        for period in range(1, 6):
-
-            self._make_header_cell(
-                f"Period {period}",
-                0,
-                period
-            )
-
-        for day_order in range(1, 7):
-
-            self._make_header_cell(
-                f"Day Order {day_order}",
-                day_order,
-                0,
-                width=110
-            )
-
-    # ======================================================
-    # HEADER CELL
-    # ======================================================
-
-    def _make_header_cell(
-        self,
-        text,
-        row,
-        column,
-        width=None
-    ):
-
-        label = ctk.CTkLabel(
-            self.grid_container,
-            text=text,
-            font=ctk.CTkFont(
-                size=12,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5"),
-            fg_color=("#E4E4E7", "#27272A"),
-            corner_radius=8,
-            height=46
-        )
-
-        if width:
-
-            label.configure(
-                width=width
-            )
-
-        label.grid(
-            row=row,
-            column=column,
-            sticky="nsew",
-            padx=4,
-            pady=4
-        )
-
-    # ======================================================
-    # FILL GRID
-    # ======================================================
-
-    def fill_grid(
-        self,
-        timetable_map,
-        mode
-    ):
-
-        for day_order in range(1, 7):
-
-            for period in range(1, 6):
-
-                entry = timetable_map.get(
-                    (
-                        day_order,
-                        period
-                    )
-                )
-
-                cell = ctk.CTkFrame(
-                    self.grid_container,
-                    corner_radius=8,
-                    fg_color=("#FFFFFF", "#1E1E1E"),
-                    border_width=1,
-                    border_color=("#E4E4E7", "#383838")
-                )
-
-                cell.grid(
-                    row=day_order,
-                    column=period,
-                    sticky="nsew",
-                    padx=4,
-                    pady=4
-                )
-
-                # ------------------------------------------
-                # FREE SLOT
-                # ------------------------------------------
-
-                if not entry:
-
-                    ctk.CTkLabel(
-                        cell,
-                        text="FREE",
-                        font=ctk.CTkFont(
-                            size=11
-                        ),
-                        text_color="gray"
-                    ).pack(
-                        fill="both",
-                        expand=True,
-                        padx=4,
-                        pady=4
-                    )
-
-                    continue
-
-                # ------------------------------------------
-                # SUBJECT
-                # ------------------------------------------
-
-                subject_code = str(
-                    entry.get(
-                        "subject_code",
-                        ""
-                    )
-                )
-
-                subject_name = str(
-                    entry.get(
-                        "subject_name",
-                        ""
-                    )
-                )
-
-                # ------------------------------------------
-                # THIRD LINE
-                # ------------------------------------------
-
-                if mode == "class":
-
-                    third_line = str(
-                        entry.get(
-                            "faculty_name",
-                            ""
-                        )
-                    )
-
-                    third_prefix = "Faculty"
-
-                else:
-
-                    third_line = str(
-                        entry.get(
-                            "class_name",
-                            ""
-                        )
-                    )
-
-                    third_prefix = "Class"
-
-                # ------------------------------------------
-                # SUBJECT CODE
-                # ------------------------------------------
-
-                ctk.CTkLabel(
-                    cell,
-                    text=subject_code,
-                    font=ctk.CTkFont(
-                        size=12,
-                        weight="bold"
-                    ),
-                    text_color=("#18181B", "#F4F4F5"),
-                    anchor="center"
-                ).pack(
-                    fill="x",
-                    padx=6,
-                    pady=(7, 1)
-                )
-
-                # ------------------------------------------
-                # SUBJECT NAME
-                # ------------------------------------------
-
-                ctk.CTkLabel(
-                    cell,
-                    text=subject_name,
-                    font=ctk.CTkFont(
-                        size=10,
-                        weight="bold"
-                    ),
-                    text_color=("#374151", "#E4E4E7"),
-                    wraplength=150,
-                    justify="center",
-                    anchor="center"
-                ).pack(
-                    fill="both",
-                    expand=True,
-                    padx=6,
-                    pady=1
-                )
-
-                # ------------------------------------------
-                # FACULTY / CLASS
-                # ------------------------------------------
-
-                badge_color = ("#1E293B", "#38BDF8") if mode == "faculty" else ("#71717A", "#A1A1AA")
-                ctk.CTkLabel(
-                    cell,
-                    text=(
-                        f"{third_prefix}: "
-                        f"{third_line}"
-                    ),
-                    font=ctk.CTkFont(
-                        size=10,
-                        weight="bold" if mode == "faculty" else "normal"
-                    ),
-                    wraplength=150,
-                    justify="center",
-                    anchor="center",
-                    text_color=badge_color
-                ).pack(
-                    fill="x",
-                    padx=5,
-                    pady=(1, 7)
-                )
-
-    # ======================================================
-    # EMPTY MESSAGE
-    # ======================================================
-
-    def show_empty_message(
-        self,
-        message
-    ):
-
-        for widget in (
-            self.grid_container.winfo_children()
-        ):
-
-            widget.destroy()
-
-        ctk.CTkLabel(
-            self.grid_container,
-            text=message,
-            font=ctk.CTkFont(
-                size=17,
-                weight="bold"
-            ),
-            text_color="gray"
-        ).pack(
-            expand=True,
-            pady=80
-        )
-
-    # ======================================================
-    # CLASS TITLE
-    # ======================================================
-
-    def get_class_title(
-        self,
-        class_id
-    ):
-
-        for record in self.class_records:
-
-            if record[0] == class_id:
-
-                class_name = (
-                    record[1]
-                    if len(record) > 1
-                    else ""
-                )
-
-                department = (
-                    record[2]
-                    if len(record) > 2
-                    else ""
-                )
-
-                semester = (
-                    record[3]
-                    if len(record) > 3
-                    else ""
-                )
-
-                return (
-                    f"{class_name}  •  "
-                    f"{department}  •  "
-                    f"Semester {semester}"
-                )
-
-        return "Class Timetable"
-
-    # ======================================================
-    # FACULTY TITLE
-    # ======================================================
-
-    def get_faculty_title(
-        self,
-        faculty_id
-    ):
-
-        for record in self.faculty_records:
-
-            if record[0] == faculty_id:
-
-                faculty_code = (
-                    record[1]
-                    if len(record) > 1
-                    else ""
-                )
-
-                faculty_name = (
-                    record[2]
-                    if len(record) > 2
-                    else ""
-                )
-
-                if faculty_code:
-
-                    return (
-                        f"{faculty_name}  •  "
-                        f"{faculty_code}"
-                    )
-
-                return faculty_name
-
-        return "Faculty Timetable"
-
-    # ======================================================
-    # SAFE FILE NAME
-    # ======================================================
-
-    @staticmethod
-    def _safe_filename(value):
-
-        value = re.sub(
-            r'[<>:"/\\|?*]',
-            "-",
-            str(value)
-        )
-
-        value = value.replace(
-            "•",
-            "-"
-        )
-
-        value = re.sub(
-            r"\s+",
-            " ",
-            value
-        ).strip(
-            " ."
-        )
-
-        return (
-            value
-            or "Timetable"
-        )
-
-    # ======================================================
-    # DOWNLOADS FOLDER
-    # ======================================================
-
-    @staticmethod
-    def _downloads_folder():
-
-        downloads = (
-            Path.home()
-            / "Downloads"
-        )
-
-        downloads.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        return downloads
-
-    # ======================================================
-    # UNIQUE PDF PATH
-    # ======================================================
-
-    def _unique_pdf_path(
-        self,
-        title_name
-    ):
-
-        folder = (
-            self._downloads_folder()
-        )
-
-        base_name = (
-            self._safe_filename(
-                title_name
-            )
-        )
-
-        path = (
-            folder
-            / f"{base_name}_Timetable.pdf"
-        )
-
-        if not path.exists():
-
-            return path
-
-        timestamp = datetime.now().strftime(
-            "%Y%m%d_%H%M%S"
-        )
-
-        return (
-            folder
-            / (
-                f"{base_name}_Timetable_"
-                f"{timestamp}.pdf"
-            )
-        )
-
-    # ======================================================
-    # PDF EXPORT
-    # ======================================================
-
-    def download_pdf(self):
-
-        if not self.current_timetable_data:
-
-            messagebox.showwarning(
-                "No Timetable",
-                (
-                    "There is no timetable "
-                    "available to download."
-                ),
-                parent=self.window
-            )
-
-            return
-
-        try:
-
-            from reportlab.lib import colors
-
-            from reportlab.lib.enums import (
-                TA_CENTER
-            )
-
-            from reportlab.lib.pagesizes import (
-                A4,
-                landscape
-            )
-
-            from reportlab.lib.styles import (
-                ParagraphStyle,
-                getSampleStyleSheet
-            )
-
-            from reportlab.lib.units import mm
-
-            from reportlab.platypus import (
-                Paragraph,
-                SimpleDocTemplate,
-                Spacer,
-                Table,
-                TableStyle
-            )
-
-        except ImportError:
-
-            messagebox.showerror(
-                "Missing Package",
-                (
-                    "ReportLab is not installed.\n\n"
-                    "Install it using:\n"
-                    "pip install reportlab"
-                ),
-                parent=self.window
-            )
-
-            return
-
-        # ==================================================
-        # TITLE
-        # ==================================================
 
         if self.current_mode == "class":
-
-            title_name = (
-                self.get_class_title(
-                    self.current_id
-                )
-            )
-
-            view_label = (
-                "Class Timetable"
-            )
-
+            self.lbl_grid_title.setText(f"Timetable Schedule: {self.target_combo.currentText()}")
+            data = get_timetable_by_class(target_id) or []
         else:
+            self.lbl_grid_title.setText(f"Faculty Schedule: {self.target_combo.currentText()}")
+            data = get_timetable_by_faculty(target_id) or []
 
-            title_name = (
-                self.get_faculty_title(
-                    self.current_id
-                )
-            )
+        self.current_timetable_data = data
 
-            view_label = (
-                "Faculty Timetable"
-            )
+        if not data:
+            self.render_empty_grid("No generated timetable slots found for this selection.\nGenerate a timetable from the 'Generate Timetable' menu first.")
+            return
 
-        file_path = (
-            self._unique_pdf_path(
-                title_name
-            )
-        )
+        self.render_grid(data)
 
-        try:
+    def render_empty_grid(self, msg):
+        palette = get_active_palette()
+        self.grid_table.clearContents()
+        self.grid_table.setRowCount(6)
+        for day in range(1, 7):
+            row_idx = day - 1
+            day_item = QTableWidgetItem(f"Day Order {day}")
+            day_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            day_item.setForeground(QColor(palette.TEXT_PRIMARY))
+            self.grid_table.setItem(row_idx, 0, day_item)
+            for p in range(1, 6):
+                empty_item = QTableWidgetItem("—")
+                empty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                empty_item.setForeground(QColor(palette.TEXT_MUTED))
+                self.grid_table.setItem(row_idx, p, empty_item)
 
-            page_width, page_height = (
-                landscape(A4)
-            )
+    def render_grid(self, data):
+        palette = get_active_palette()
+        self.grid_table.clearContents()
+        self.grid_table.setRowCount(6)
 
-            document = SimpleDocTemplate(
-                str(file_path),
-                pagesize=landscape(A4),
-                rightMargin=10 * mm,
-                leftMargin=10 * mm,
-                topMargin=10 * mm,
-                bottomMargin=10 * mm,
-                title=(
-                    f"{view_label} - "
-                    f"{title_name}"
-                ),
-                author=(
-                    "Smart Academic "
-                    "Timetable Management System"
-                )
-            )
+        slot_map = {}
+        for row in data:
+            day_o = row[0]
+            period = row[1]
+            slot_map[(day_o, period)] = row
 
-            styles = (
-                getSampleStyleSheet()
-            )
+        for day in range(1, 7):
+            row_idx = day - 1
+            day_item = QTableWidgetItem(f"Day Order {day}")
+            day_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            day_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            day_item.setForeground(QColor(palette.TEXT_PRIMARY))
+            self.grid_table.setItem(row_idx, 0, day_item)
 
-            title_style = ParagraphStyle(
-                "TimetableTitle",
-                parent=styles["Title"],
-                fontName="Helvetica-Bold",
-                fontSize=17,
-                leading=20,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#102A43"
-                ),
-                spaceAfter=4
-            )
+            for p in range(1, 6):
+                col_idx = p
+                slot = slot_map.get((day, p))
 
-            subtitle_style = ParagraphStyle(
-                "TimetableSubtitle",
-                parent=styles["Normal"],
-                fontName="Helvetica",
-                fontSize=9,
-                leading=11,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#52606D"
-                ),
-                spaceAfter=3
-            )
+                if slot:
+                    if self.current_mode == "class":
+                        scode = slot[3] if len(slot) > 3 else ""
+                        sname = slot[4] if len(slot) > 4 else ""
+                        fac_name = slot[5] if len(slot) > 5 else ""
+                        cell_text = f"{scode}\n{sname}\nFaculty: {fac_name}"
+                    else:
+                        cname = slot[3] if len(slot) > 3 else ""
+                        scode = slot[4] if len(slot) > 4 else ""
+                        sname = slot[5] if len(slot) > 5 else ""
+                        sem = slot[6] if len(slot) > 6 and slot[6] else ""
+                        sem_str = f" (Sem {sem})" if sem else ""
+                        cell_text = f"{scode}\n{sname}\nClass: {cname}{sem_str}"
 
-            info_style = ParagraphStyle(
-                "Info",
-                parent=styles["Normal"],
-                fontName="Helvetica",
-                fontSize=7.5,
-                leading=9,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#52606D"
-                ),
-                spaceAfter=8
-            )
-
-            header_style = ParagraphStyle(
-                "Header",
-                parent=styles["Normal"],
-                fontName="Helvetica-Bold",
-                fontSize=8,
-                leading=9,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#102A43"
-                )
-            )
-
-            day_style = ParagraphStyle(
-                "Day",
-                parent=styles["Normal"],
-                fontName="Helvetica-Bold",
-                fontSize=7.5,
-                leading=9,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#102A43"
-                )
-            )
-
-            cell_style = ParagraphStyle(
-                "Cell",
-                parent=styles["Normal"],
-                fontName="Helvetica",
-                fontSize=6.8,
-                leading=8,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#243B53"
-                )
-            )
-
-            free_style = ParagraphStyle(
-                "Free",
-                parent=cell_style,
-                fontName="Helvetica-Oblique",
-                fontSize=7,
-                textColor=colors.HexColor(
-                    "#829AB1"
-                )
-            )
-
-            story = []
-
-            story.append(
-                Paragraph(
-                    (
-                        "SMART ACADEMIC "
-                        "TIMETABLE MANAGEMENT SYSTEM"
-                    ),
-                    title_style
-                )
-            )
-
-            story.append(
-                Paragraph(
-                    (
-                        f"{view_label} "
-                        f"&nbsp; | &nbsp; "
-                        f"{title_name}"
-                    ),
-                    subtitle_style
-                )
-            )
-
-            story.append(
-                Paragraph(
-                    (
-                        f"Generated on "
-                        f"{datetime.now().strftime('%d-%m-%Y %I:%M %p')} "
-                        f"&nbsp; | &nbsp; "
-                        f"Total scheduled periods: "
-                        f"{len(self.current_timetable_data)}"
-                    ),
-                    info_style
-                )
-            )
-
-            # ==================================================
-            # BUILD TIMETABLE MAP
-            # ==================================================
-
-            timetable_map = {}
-
-            for row in (
-                self.current_timetable_data
-            ):
-
-                day_order = row[0]
-                period = row[1]
-
-                if self.current_mode == "class":
-
-                    timetable_map[
-                        (
-                            day_order,
-                            period
-                        )
-                    ] = {
-                        "subject_code": row[3],
-                        "subject_name": row[4],
-                        "third": row[5],
-                        "third_label": "Faculty"
-                    }
-
+                    item = QTableWidgetItem(cell_text)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setBackground(QColor(palette.BG_TIMETABLE_SLOT))
+                    item.setForeground(QColor(palette.TEXT_PRIMARY))
+                    self.grid_table.setItem(row_idx, col_idx, item)
                 else:
+                    item = QTableWidgetItem("FREE PERIOD\n—")
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setBackground(QColor(palette.BG_TIMETABLE_FREE))
+                    item.setForeground(QColor(palette.TEXT_MUTED))
+                    self.grid_table.setItem(row_idx, col_idx, item)
 
-                    timetable_map[
-                        (
-                            day_order,
-                            period
-                        )
-                    ] = {
-                        "subject_code": row[4],
-                        "subject_name": row[5],
-                        "third": row[3],
-                        "third_label": "Class"
-                    }
+    def get_download_path(self, ext="pdf"):
+        name_clean = re.sub(r'[\\/*?:"<>|]', "", self.target_combo.currentText()).strip().replace(" ", "_")
+        default_dir = str(Path.home() / "Downloads")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return os.path.join(default_dir, f"Timetable_{name_clean}_{timestamp}.{ext}")
 
-            # ==================================================
-            # TABLE HEADER
-            # ==================================================
+    def download_pdf(self):
+        if not self.current_timetable_data:
+            QMessageBox.warning(self, "Export PDF", "No timetable schedule available to export.")
+            return
 
-            table_data = [
-
-                [
-                    Paragraph(
-                        "Day Order",
-                        header_style
-                    ),
-
-                    Paragraph(
-                        "Period 1",
-                        header_style
-                    ),
-
-                    Paragraph(
-                        "Period 2",
-                        header_style
-                    ),
-
-                    Paragraph(
-                        "Period 3",
-                        header_style
-                    ),
-
-                    Paragraph(
-                        "Period 4",
-                        header_style
-                    ),
-
-                    Paragraph(
-                        "Period 5",
-                        header_style
-                    )
-                ]
-            ]
-
-            # ==================================================
-            # TABLE ROWS
-            # ==================================================
-
-            for day_order in range(
-                1,
-                7
-            ):
-
-                row_data = [
-
-                    Paragraph(
-                        f"Day Order {day_order}",
-                        day_style
-                    )
-                ]
-
-                for period in range(
-                    1,
-                    6
-                ):
-
-                    entry = (
-                        timetable_map.get(
-                            (
-                                day_order,
-                                period
-                            )
-                        )
-                    )
-
-                    if not entry:
-
-                        row_data.append(
-                            Paragraph(
-                                "FREE",
-                                free_style
-                            )
-                        )
-
-                        continue
-
-                    code = (
-                        self._escape_pdf_text(
-                            entry[
-                                "subject_code"
-                            ]
-                        )
-                    )
-
-                    name = (
-                        self._escape_pdf_text(
-                            entry[
-                                "subject_name"
-                            ]
-                        )
-                    )
-
-                    third = (
-                        self._escape_pdf_text(
-                            entry[
-                                "third"
-                            ]
-                        )
-                    )
-
-                    label = (
-                        self._escape_pdf_text(
-                            entry[
-                                "third_label"
-                            ]
-                        )
-                    )
-
-                    content = (
-                        f"<b>{code}</b><br/>"
-                        f"{name}<br/><br/>"
-                        f"<font size='6'>"
-                        f"{label}: {third}"
-                        f"</font>"
-                    )
-
-                    row_data.append(
-                        Paragraph(
-                            content,
-                            cell_style
-                        )
-                    )
-
-                table_data.append(
-                    row_data
-                )
-
-            # ==================================================
-            # TABLE WIDTH
-            # ==================================================
-
-            usable_width = (
-                page_width
-                - document.leftMargin
-                - document.rightMargin
-            )
-
-            day_column_width = (
-                28 * mm
-            )
-
-            period_width = (
-                usable_width
-                - day_column_width
-            ) / 5
-
-            timetable_table = Table(
-                table_data,
-                colWidths=[
-                    day_column_width,
-                    period_width,
-                    period_width,
-                    period_width,
-                    period_width,
-                    period_width
-                ],
-                repeatRows=1,
-                hAlign="CENTER"
-            )
-
-            # ==================================================
-            # TABLE STYLE
-            # ==================================================
-
-            timetable_table.setStyle(
-                TableStyle(
-                    [
-
-                        (
-                            "BACKGROUND",
-                            (0, 0),
-                            (-1, 0),
-                            colors.HexColor(
-                                "#DCE3EA"
-                            )
-                        ),
-
-                        (
-                            "BACKGROUND",
-                            (0, 1),
-                            (0, -1),
-                            colors.HexColor(
-                                "#EEF2F6"
-                            )
-                        ),
-
-                        (
-                            "BACKGROUND",
-                            (1, 1),
-                            (-1, -1),
-                            colors.white
-                        ),
-
-                        (
-                            "GRID",
-                            (0, 0),
-                            (-1, -1),
-                            0.55,
-                            colors.HexColor(
-                                "#AAB4BE"
-                            )
-                        ),
-
-                        (
-                            "VALIGN",
-                            (0, 0),
-                            (-1, -1),
-                            "MIDDLE"
-                        ),
-
-                        (
-                            "ALIGN",
-                            (0, 0),
-                            (-1, -1),
-                            "CENTER"
-                        ),
-
-                        (
-                            "LEFTPADDING",
-                            (0, 0),
-                            (-1, -1),
-                            4
-                        ),
-
-                        (
-                            "RIGHTPADDING",
-                            (0, 0),
-                            (-1, -1),
-                            4
-                        ),
-
-                        (
-                            "TOPPADDING",
-                            (0, 0),
-                            (-1, -1),
-                            6
-                        ),
-
-                        (
-                            "BOTTOMPADDING",
-                            (0, 0),
-                            (-1, -1),
-                            6
-                        )
-                    ]
-                )
-            )
-
-            story.append(
-                timetable_table
-            )
-
-            story.append(
-                Spacer(
-                    1,
-                    7
-                )
-            )
-
-            footer_style = ParagraphStyle(
-                "Footer",
-                parent=styles["Normal"],
-                fontName="Helvetica",
-                fontSize=7,
-                leading=8,
-                alignment=TA_CENTER,
-                textColor=colors.HexColor(
-                    "#7B8794"
-                )
-            )
-
-            story.append(
-                Paragraph(
-                    (
-                        "Generated by Smart Academic "
-                        "Timetable Management System"
-                    ),
-                    footer_style
-                )
-            )
-
-            # ==================================================
-            # BUILD PDF
-            # ==================================================
-
-            document.build(
-                story
-            )
-
-            messagebox.showinfo(
-                "PDF Downloaded",
-                (
-                    "Timetable PDF created successfully!\n\n"
-                    "Saved in Downloads:\n"
-                    f"{file_path}"
-                ),
-                parent=self.window
-            )
-
-        except Exception as error:
-
-            messagebox.showerror(
-                "PDF Export Error",
-                (
-                    "Unable to create the timetable PDF.\n\n"
-                    f"{error}"
-                ),
-                parent=self.window
-            )
-
-    # ======================================================
-    # ESCAPE PDF TEXT
-    # ======================================================
-
-    @staticmethod
-    def _escape_pdf_text(
-        value
-    ):
-
-        value = str(
-            value
-            if value is not None
-            else ""
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Timetable PDF",
+            self.get_download_path("pdf"),
+            "PDF Files (*.pdf)"
         )
-
-        return (
-            value
-            .replace(
-                "&",
-                "&amp;"
-            )
-            .replace(
-                "<",
-                "&lt;"
-            )
-            .replace(
-                ">",
-                "&gt;"
-            )
-        )
-
-    # ======================================================
-    # REFRESH
-    # ======================================================
-
-    def refresh_timetable(self):
-
-        try:
-
-            create_timetable_table()
-
-            timetable = (
-                get_all_timetable()
-                or []
-            )
-
-            # ----------------------------------------------
-            # No generated timetable
-            # ----------------------------------------------
-
-            if not timetable:
-
-                self.current_id = None
-
-                self.current_timetable_data = []
-
-                self.download_button.configure(
-                    state="disabled"
-                )
-
-                self.build_generated_class_list()
-
-                self.build_generated_faculty_list()
-
-                self.show_empty_message(
-                    "No timetable has been generated yet."
-                )
-
-                return
-
-            # ----------------------------------------------
-            # Reload database data
-            # ----------------------------------------------
-
-            self.load_dropdowns()
-
-            # ----------------------------------------------
-            # Reload correct mode
-            # ----------------------------------------------
-
-            if self.current_mode == "class":
-
-                self.load_class_dropdown()
-
-            else:
-
-                self.load_faculty_dropdown()
-
-            # ----------------------------------------------
-            # Display selected timetable
-            # ----------------------------------------------
-
-            selected = (
-                self.selection_menu.get()
-            )
-
-            if selected.startswith("No "):
-
-                self.current_id = None
-
-                self.current_timetable_data = []
-
-                self.download_button.configure(
-                    state="disabled"
-                )
-
-                self.show_empty_message(
-                    (
-                        "No generated timetable "
-                        "entries available."
-                    )
-                )
-
-                return
-
-            self.selection_changed(
-                selected
-            )
-
-        except Exception as error:
-
-            messagebox.showerror(
-                "Refresh Error",
-                (
-                    "Unable to refresh timetable.\n\n"
-                    f"{error}"
-                ),
-                parent=self.window
-            )
-
-    # ======================================================
-    # CLOSE
-    # ======================================================
-
-    def close_window(self):
-
-        if self.embedded:
+        if not save_path:
             return
 
         try:
+            from reportlab.lib.pagesizes import letter, landscape, A4
+            from reportlab.lib import colors
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-            self.window.grab_release()
+            doc = SimpleDocTemplate(
+                save_path,
+                pagesize=landscape(A4),
+                rightMargin=20,
+                leftMargin=20,
+                topMargin=20,
+                bottomMargin=20
+            )
 
-        except Exception:
+            elements = []
+            styles = getSampleStyleSheet()
 
-            pass
+            title_style = ParagraphStyle(
+                "DocTitle",
+                parent=styles["Heading1"],
+                fontName="Helvetica-Bold",
+                fontSize=18,
+                alignment=1,
+                textColor=colors.HexColor("#1E293B"),
+                spaceAfter=6
+            )
+            sub_style = ParagraphStyle(
+                "DocSub",
+                parent=styles["Normal"],
+                fontName="Helvetica",
+                fontSize=11,
+                alignment=1,
+                textColor=colors.HexColor("#64748B"),
+                spaceAfter=14
+            )
 
-        self.window.destroy()
+            title_txt = f"Academic Timetable — {self.target_combo.currentText()}"
+            elements.append(Paragraph(title_txt, title_style))
+            elements.append(Paragraph(f"Generated on {datetime.now().strftime('%d %B %Y, %I:%M %p')} • Smart Timetable System", sub_style))
 
+            headers = ["Day Order", "Period 1 (09:00-10:00)", "Period 2 (10:00-11:00)", "Period 3 (11:15-12:15)", "Period 4 (01:00-02:00)", "Period 5 (02:00-03:00)"]
+            table_data = [headers]
 
-# ==========================================================
-# STANDALONE TEST
-# ==========================================================
+            slot_map = {(r[0], r[1]): r for r in self.current_timetable_data}
+
+            for day in range(1, 7):
+                row = [f"Day Order {day}"]
+                for p in range(1, 6):
+                    s = slot_map.get((day, p))
+                    if s:
+                        if self.current_mode == "class":
+                            row.append(f"{s[3]}\n{s[4]}\n({s[5]})")
+                        else:
+                            sem_str = f" (Sem {s[6]})" if len(s) > 6 and s[6] else ""
+                            row.append(f"{s[4]}\n{s[5]}\n({s[3]}{sem_str})")
+                    else:
+                        row.append("FREE PERIOD")
+                table_data.append(row)
+
+            pdf_table = Table(table_data, colWidths=[90, 140, 140, 140, 140, 140])
+            pdf_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563EB")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                ("TOPPADDING", (0, 0), (-1, 0), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("BACKGROUND", (0, 1), (0, -1), colors.HexColor("#F1F5F9")),
+                ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 1), (-1, -1), 8),
+            ]))
+
+            elements.append(pdf_table)
+            doc.build(elements)
+
+            QMessageBox.information(
+                self,
+                "PDF Exported",
+                f"Timetable PDF exported successfully!\n\nSaved to:\n{save_path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to generate PDF:\n{e}")
+
+    def export_csv(self):
+        if not self.current_timetable_data:
+            QMessageBox.warning(self, "Export CSV", "No timetable schedule available to export.")
+            return
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Timetable CSV",
+            self.get_download_path("csv"),
+            "CSV Files (*.csv)"
+        )
+        if not save_path:
+            return
+
+        try:
+            with open(save_path, mode="w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Timetable Schedule", self.target_combo.currentText()])
+                writer.writerow(["Exported At", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                writer.writerow([])
+                writer.writerow(["Day Order", "Period 1", "Period 2", "Period 3", "Period 4", "Period 5"])
+
+                slot_map = {(r[0], r[1]): r for r in self.current_timetable_data}
+                for day in range(1, 7):
+                    row = [f"Day Order {day}"]
+                    for p in range(1, 6):
+                        s = slot_map.get((day, p))
+                        if s:
+                            if self.current_mode == "class":
+                                row.append(f"{s[3]} - {s[4]} ({s[5]})")
+                            else:
+                                sem_str = f" (Sem {s[6]})" if len(s) > 6 and s[6] else ""
+                                row.append(f"{s[4]} - {s[5]} ({s[3]}{sem_str})")
+                        else:
+                            row.append("FREE PERIOD")
+                    writer.writerow(row)
+
+            QMessageBox.information(
+                self,
+                "CSV Exported",
+                f"Timetable CSV exported successfully!\n\nSaved to:\n{save_path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export CSV:\n{e}")
+
+    def clear_all_timetables(self):
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Clear Timetable",
+            "Are you sure you want to completely remove the generated timetable?\n\nThis will clear all scheduled slots across all classes.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            success = clear_timetable()
+            if success:
+                QMessageBox.information(self, "Cleared", "Timetable data successfully removed.")
+                self.load_timetable_grid()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to clear timetable.")
+
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    from ui.theme import apply_theme
 
-    ctk.set_appearance_mode(
-        "System"
-    )
-
-    ctk.set_default_color_theme(
-        "dark-blue"
-    )
-
-    root = ctk.CTk()
-
-    root.withdraw()
-
-    ViewTimetableWindow(
-        root
-    )
-
-    root.mainloop()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = ViewTimetableWindow()
+    win.show()
+    sys.exit(app.exec())

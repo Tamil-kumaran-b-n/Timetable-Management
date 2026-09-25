@@ -1,484 +1,332 @@
-import customtkinter as ctk
-from tkinter import messagebox
+"""
+Generate Timetable Window & Embedded Widget in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QRadioButton, QButtonGroup, QMessageBox, QFrame, QScrollArea,
+    QProgressBar, QTextEdit
+)
 
 from database.database import get_all_classes
 from database.workload import get_all_workloads
-from database.generator import (
-    generate_timetable,
-    get_all_timetable,
-)
+from database.generator import generate_timetable, get_all_timetable
 
 
-class GenerateTimetableWindow:
-    def __init__(self, parent, container=None, navigate=None):
-        self.parent = parent
+class GenerateTimetableWindow(QWidget):
+    def __init__(self, parent=None, container=None, navigate=None):
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.embedded = container is not None
         self.navigate = navigate
         self.classes_data = []
         self.selected_class_id = None
 
-        self.window = container if self.embedded else ctk.CTkToplevel(parent)
         if not self.embedded:
-            self.window.title("Generate Timetable")
-            self.window.geometry("1050x700")
-            self.window.minsize(900, 600)
-            self.window.transient(parent)
-            self.window.grab_set()
+            self.setWindowTitle("Generate Timetable - Smart Academic Timetable Management System")
+            self.resize(1050, 700)
+            self.setMinimumSize(900, 600)
 
-        self.build_ui()
+        self.setup_ui()
         self.load_classes_dropdown()
         self.load_workload_summary()
 
-    # ========================================================
-    # UI
-    # ========================================================
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-    def build_ui(self):
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        # Main container
-        self.main_frame = ctk.CTkScrollableFrame(
-            self.window,
-            fg_color="transparent"
-        )
-        self.main_frame.pack(
-            fill="both",
-            expand=True,
-            padx=30,
-            pady=25
-        )
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-        # ----------------------------------------------------
-        # Header
-        # ----------------------------------------------------
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll_content.setMinimumWidth(850)
+        scroll.setWidget(scroll_content)
 
-        ctk.CTkLabel(
-            self.main_frame,
-            text="Generate Timetable",
-            font=ctk.CTkFont(
-                size=28,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            anchor="w"
-        )
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
 
-        ctk.CTkLabel(
-            self.main_frame,
-            text=(
-                "Generate a balanced, conflict-free timetable across all classes "
-                "or generate for an individual class separately."
-            ),
-            font=ctk.CTkFont(
-                size=14
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            anchor="w",
-            pady=(5, 20)
-        )
+        # =====================================================
+        # HEADER
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        # ----------------------------------------------------
-        # Scope Selection Card (All Classes vs Single Class)
-        # ----------------------------------------------------
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        lbl_title = QLabel("Generate Timetable")
+        lbl_title.setObjectName("Heading")
+        lbl_sub = QLabel("Generate an optimized, balanced, conflict-free schedule across all classes or for a single class")
+        lbl_sub.setObjectName("Secondary")
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        scope_card = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-        scope_card.pack(
-            fill="x",
-            pady=(0, 20)
-        )
+        self.btn_view_tt = QPushButton("View Generated Timetable")
+        self.btn_view_tt.setProperty("btnStyle", "secondary")
+        self.btn_view_tt.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_view_tt.clicked.connect(self.go_to_view_timetable)
+        header_layout.addWidget(self.btn_view_tt)
 
-        ctk.CTkLabel(
-            scope_card,
-            text="Generation Scope",
-            font=ctk.CTkFont(
-                size=16,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(16, 4)
-        )
+        main_layout.addWidget(header_card)
 
-        scope_sublabel = ctk.CTkLabel(
-            scope_card,
-            text="Select whether to generate schedules for the entire college or regenerate a single class independently:",
-            font=ctk.CTkFont(size=12),
-            text_color=("#71717A", "#A1A1AA")
-        )
-        scope_sublabel.pack(anchor="w", padx=20, pady=(0, 10))
+        # =====================================================
+        # SCOPE & MODE SELECTION CARD
+        # =====================================================
+        scope_card = QFrame()
+        scope_card.setObjectName("Card")
+        scope_layout = QVBoxLayout(scope_card)
+        scope_layout.setContentsMargins(25, 20, 25, 25)
+        scope_layout.setSpacing(14)
 
-        scope_row = ctk.CTkFrame(scope_card, fg_color="transparent")
-        scope_row.pack(fill="x", padx=20, pady=(0, 16))
+        lbl_scope_title = QLabel("1. Generation Scope & Strategy")
+        lbl_scope_title.setObjectName("Subheading")
+        scope_layout.addWidget(lbl_scope_title)
 
-        ctk.CTkLabel(
-            scope_row,
-            text="Target Scope:",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(side="left", padx=(0, 12))
+        # Scope Options
+        lbl_scope_type = QLabel("Generation Scope:")
+        lbl_scope_type.setObjectName("FormLabel")
+        scope_layout.addWidget(lbl_scope_type)
 
-        self.scope_combo = ctk.CTkComboBox(
-            scope_row,
-            values=["All Classes (Full Generation)"],
-            width=380,
-            height=38,
-            font=("Arial", 12),
-            command=self.on_scope_changed
-        )
-        self.scope_combo.set("All Classes (Full Generation)")
-        self.scope_combo.pack(side="left", padx=(0, 12))
+        scope_opts_layout = QHBoxLayout()
+        scope_opts_layout.setSpacing(25)
 
-        # ----------------------------------------------------
-        # Rules Card
-        # ----------------------------------------------------
+        self.radio_all = QRadioButton("All Classes (Complete College Schedule)")
+        self.radio_all.setChecked(True)
+        self.radio_all.toggled.connect(self.on_scope_changed)
 
-        rules_card = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-        rules_card.pack(
-            fill="x",
-            pady=(0, 20)
-        )
+        self.radio_single = QRadioButton("Single Class (Selective Generation)")
+        self.radio_single.toggled.connect(self.on_scope_changed)
 
-        ctk.CTkLabel(
-            rules_card,
-            text="Timetable Structure & Constraint Rules",
-            font=ctk.CTkFont(
-                size=16,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(16, 8)
-        )
+        self.scope_group = QButtonGroup(self)
+        self.scope_group.addButton(self.radio_all)
+        self.scope_group.addButton(self.radio_single)
 
-        rules_text = (
-            "• 6 Day Orders (Day 1 through Day 6)\n"
-            "• 5 Periods per Day (30 Total Slots per Class)\n"
-            "• 29 Teaching Periods + 1 Mandatory FREE Period (Period 5)\n"
-            "• Workloads distributed evenly across Day Orders to avoid subject clustering\n"
-            "• Consecutive periods for the same subject avoided where possible\n"
-            "• High-priority workloads scheduled with morning/core period priority\n"
-            "• Zero faculty double-booking clashes across all simultaneous classes"
-        )
+        scope_opts_layout.addWidget(self.radio_all)
+        scope_opts_layout.addWidget(self.radio_single)
+        scope_opts_layout.addStretch()
+        scope_layout.addLayout(scope_opts_layout)
 
-        ctk.CTkLabel(
-            rules_card,
-            text=rules_text,
-            justify="left",
-            anchor="w",
-            font=ctk.CTkFont(
-                size=12
-            ),
-            text_color=("#374151", "#D1D5DB")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(0, 16)
-        )
+        # Class selector dropdown (visible only when Single Class is selected)
+        self.class_select_container = QWidget()
+        cls_sel_layout = QHBoxLayout(self.class_select_container)
+        cls_sel_layout.setContentsMargins(0, 0, 0, 0)
+        lbl_tgt = QLabel("Select Target Class:")
+        lbl_tgt.setObjectName("FormLabel")
+        cls_sel_layout.addWidget(lbl_tgt)
+        self.class_combo = QComboBox()
+        self.class_combo.setMinimumWidth(300)
+        self.class_combo.currentIndexChanged.connect(self.on_class_combo_changed)
+        cls_sel_layout.addWidget(self.class_combo)
+        cls_sel_layout.addStretch()
+        self.class_select_container.setVisible(False)
+        scope_layout.addWidget(self.class_select_container)
 
-        # ----------------------------------------------------
-        # Statistics
-        # ----------------------------------------------------
+        # Strategy Options (Efficient vs Random)
+        lbl_mode_type = QLabel("Optimization Mode:")
+        lbl_mode_type.setObjectName("FormLabel")
+        scope_layout.addWidget(lbl_mode_type)
 
-        stats_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
-        stats_frame.pack(
-            fill="x",
-            pady=(0, 20)
-        )
+        mode_opts_layout = QHBoxLayout()
+        mode_opts_layout.setSpacing(25)
 
-        self.workload_value = self.create_stat_card(
-            stats_frame,
-            "Total Workloads"
-        )
+        self.radio_efficient = QRadioButton("Efficient / Balanced (Optimized Spacing & Prime Morning Slots)")
+        self.radio_efficient.setChecked(True)
 
-        self.important_value = self.create_stat_card(
-            stats_frame,
-            "Important"
-        )
+        self.radio_random = QRadioButton("Randomized (Alternative Shuffled Combination)")
 
-        self.normal_value = self.create_stat_card(
-            stats_frame,
-            "Normal"
-        )
+        self.mode_group = QButtonGroup(self)
+        self.mode_group.addButton(self.radio_efficient)
+        self.mode_group.addButton(self.radio_random)
 
-        self.period_value = self.create_stat_card(
-            stats_frame,
-            "Required Periods"
-        )
+        mode_opts_layout.addWidget(self.radio_efficient)
+        mode_opts_layout.addWidget(self.radio_random)
+        mode_opts_layout.addStretch()
+        scope_layout.addLayout(mode_opts_layout)
 
-        # ----------------------------------------------------
-        # Status
-        # ----------------------------------------------------
+        main_layout.addWidget(scope_card)
 
-        self.status_card = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-        self.status_card.pack(
-            fill="x",
-            pady=(0, 25)
-        )
+        # =====================================================
+        # READINESS & STATS CARD
+        # =====================================================
+        stats_card = QFrame()
+        stats_card.setObjectName("Card")
+        stats_layout = QVBoxLayout(stats_card)
+        stats_layout.setContentsMargins(25, 20, 25, 25)
+        stats_layout.setSpacing(15)
 
-        self.status_label = ctk.CTkLabel(
-            self.status_card,
-            text="Ready to generate timetable.",
-            font=ctk.CTkFont(
-                size=13
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
-        self.status_label.pack(
-            anchor="w",
-            padx=20,
-            pady=16
-        )
+        lbl_stats_title = QLabel("2. Workload & Curriculum Readiness")
+        lbl_stats_title.setObjectName("Subheading")
+        stats_layout.addWidget(lbl_stats_title)
 
-        # ----------------------------------------------------
-        # Buttons
-        # ----------------------------------------------------
+        grid_stats = QGridLayout()
+        grid_stats.setSpacing(15)
+        grid_stats.setColumnStretch(0, 1)
+        grid_stats.setColumnStretch(1, 1)
+        grid_stats.setColumnStretch(2, 1)
 
-        button_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
-        button_frame.pack(
-            fill="x"
-        )
+        self.stat_workloads = self.create_metric_card("Total Workloads", "0", 0, 0, grid_stats)
+        self.stat_generated = self.create_metric_card("Total Timetables Generated", "0", 0, 1, grid_stats)
+        self.stat_periods = self.create_metric_card("Total Teaching Periods", "0", 0, 2, grid_stats)
 
-        self.generate_button = ctk.CTkButton(
-            button_frame,
-            text="Generate Timetable",
-            height=44,
-            font=ctk.CTkFont(
-                size=14,
-                weight="bold"
-            ),
-            command=self.generate
-        )
-        self.generate_button.pack(
-            side="left",
-            padx=(0, 12)
-        )
+        stats_layout.addLayout(grid_stats)
 
-        self.refresh_button = ctk.CTkButton(
-            button_frame,
-            text="Refresh Workload",
-            height=44,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self.load_workload_summary
-        )
-        self.refresh_button.pack(
-            side="left",
-            padx=(0, 12)
-        )
+        # Status indicator text
+        self.status_label = QLabel("Analyzing workload allocations...")
+        self.status_label.setObjectName("NoticeText")
+        self.status_label.setStyleSheet("font-weight: 600; margin-top: 5px;")
+        stats_layout.addWidget(self.status_label)
 
-        self.view_button = ctk.CTkButton(
-            button_frame,
-            text="View Timetable",
-            height=44,
-            command=self.open_timetable
-        )
-        self.view_button.pack(
-            side="left"
-        )
+        main_layout.addWidget(stats_card)
 
-    # ========================================================
-    # STAT CARD
-    # ========================================================
+        # =====================================================
+        # EXECUTION & PROGRESS CARD
+        # =====================================================
+        exec_card = QFrame()
+        exec_card.setObjectName("Card")
+        exec_layout = QVBoxLayout(exec_card)
+        exec_layout.setContentsMargins(25, 20, 25, 25)
+        exec_layout.setSpacing(15)
 
-    def create_stat_card(self, parent, title):
+        lbl_exec_title = QLabel("3. Algorithm Execution & Progress")
+        lbl_exec_title.setObjectName("Subheading")
+        exec_layout.addWidget(lbl_exec_title)
 
-        card = ctk.CTkFrame(
-            parent,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFixedHeight(20)
+        exec_layout.addWidget(self.progress_bar)
 
-        card.pack(
-            side="left",
-            fill="both",
-            expand=True,
-            padx=5
-        )
+        # Execution buttons
+        btn_action_layout = QHBoxLayout()
+        btn_action_layout.setSpacing(12)
 
-        ctk.CTkLabel(
-            card,
-            text=title,
-            font=ctk.CTkFont(
-                size=12
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            pady=(12, 2)
-        )
+        self.btn_generate = QPushButton("Start Timetable Generation")
+        self.btn_generate.setProperty("btnStyle", "primary")
+        self.btn_generate.setMinimumHeight(42)
+        self.btn_generate.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_generate.clicked.connect(self.generate)
+        btn_action_layout.addWidget(self.btn_generate)
 
-        value = ctk.CTkLabel(
-            card,
-            text="0",
-            font=ctk.CTkFont(
-                size=22,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        self.btn_refresh = QPushButton("Refresh Workloads")
+        self.btn_refresh.setProperty("btnStyle", "secondary")
+        self.btn_refresh.setMinimumHeight(42)
+        self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_refresh.clicked.connect(self.load_workload_summary)
+        btn_action_layout.addWidget(self.btn_refresh)
 
-        value.pack(
-            pady=(0, 12)
-        )
+        btn_action_layout.addStretch()
+        exec_layout.addLayout(btn_action_layout)
 
-        return value
+        main_layout.addWidget(exec_card)
+        main_layout.addStretch()
 
-    # ========================================================
-    # LOAD CLASSES DROPDOWN
-    # ========================================================
+    def create_metric_card(self, title, initial_val, row, col, grid_layout):
+        card = QFrame()
+        card.setObjectName("MetricCard")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(15, 12, 15, 12)
+        layout.setSpacing(4)
+
+        lbl_v = QLabel(initial_val)
+        lbl_v.setObjectName("MetricValue")
+        lbl_t = QLabel(title)
+        lbl_t.setObjectName("MetricLabel")
+
+        layout.addWidget(lbl_v)
+        layout.addWidget(lbl_t)
+        grid_layout.addWidget(card, row, col)
+        return lbl_v
 
     def load_classes_dropdown(self):
-        try:
-            self.classes_data = get_all_classes() or []
-        except Exception:
-            self.classes_data = []
-
-        options = ["All Classes (Full Generation)"]
+        self.classes_data = get_all_classes() or []
+        self.class_combo.clear()
         for c in self.classes_data:
             cid = c[0]
-            cname = c[1] if len(c) > 1 else ""
-            dept = c[2] if len(c) > 2 else ""
+            cname = c[1]
             sem = c[3] if len(c) > 3 else ""
-            options.append(f"{cname} | {dept} | Sem {sem} (ID: {cid})")
+            dept = c[2] if len(c) > 2 else ""
+            self.class_combo.addItem(f"{cname} (Sem {sem}, {dept})", cid)
 
-        self.scope_combo.configure(values=options)
-
-    def on_scope_changed(self, choice):
-        if choice.startswith("All Classes"):
-            self.selected_class_id = None
-            self.generate_button.configure(text="Generate All Timetables")
+    def on_scope_changed(self):
+        is_single = self.radio_single.isChecked()
+        self.class_select_container.setVisible(is_single)
+        if is_single and self.class_combo.count() > 0:
+            self.selected_class_id = self.class_combo.currentData()
         else:
-            # Parse class ID from choice string (ID: <num>)
-            try:
-                cid_str = choice.split("(ID:")[-1].replace(")", "").strip()
-                self.selected_class_id = int(cid_str)
-                self.generate_button.configure(text="Generate for Selected Class")
-            except Exception:
-                self.selected_class_id = None
-                self.generate_button.configure(text="Generate Timetable")
-
+            self.selected_class_id = None
         self.load_workload_summary()
 
-    # ========================================================
-    # LOAD WORKLOAD SUMMARY
-    # ========================================================
+    def on_class_combo_changed(self):
+        if self.radio_single.isChecked():
+            self.selected_class_id = self.class_combo.currentData()
+            self.load_workload_summary()
 
     def load_workload_summary(self):
-
         try:
-            workloads = get_all_workloads()
-
+            from database.database import get_connection
+            workloads = get_all_workloads() or []
             if self.selected_class_id is not None:
-                workloads = [w for w in workloads if w[2] == self.selected_class_id]
+                workloads = [w for w in workloads if (len(w) > 4 and w[4] == self.selected_class_id) or (len(w) > 2 and w[2] == self.selected_class_id)]
 
             total = len(workloads)
+            total_periods = sum(int(row[13]) for row in workloads if len(row) > 13 and str(row[13]).isdigit())
 
-            important = sum(
-                1
-                for row in workloads
-                if len(row) > 12 and str(row[12]).strip().lower() == "important"
-            )
+            conn = get_connection()
+            try:
+                c = conn.cursor()
+                if self.selected_class_id:
+                    c.execute("SELECT COUNT(DISTINCT class_id) FROM timetable WHERE class_id = ?", (self.selected_class_id,))
+                else:
+                    c.execute("SELECT COUNT(DISTINCT class_id) FROM timetable")
+                gen_count = c.fetchone()[0] or 0
+            finally:
+                conn.close()
 
-            normal = total - important
-
-            total_periods = sum(
-                int(row[13])
-                for row in workloads
-                if len(row) > 13 and str(row[13]).isdigit()
-            )
-
-            self.workload_value.configure(
-                text=str(total)
-            )
-
-            self.important_value.configure(
-                text=str(important)
-            )
-
-            self.normal_value.configure(
-                text=str(normal)
-            )
-
-            self.period_value.configure(
-                text=str(total_periods)
-            )
+            self.stat_workloads.setText(str(total))
+            self.stat_generated.setText(str(gen_count))
+            self.stat_periods.setText(str(total_periods))
 
             scope_desc = "for selected class" if self.selected_class_id else "across all classes"
-
             if total == 0:
-                self.status_label.configure(
-                    text=(
-                        f"No workload found {scope_desc}. "
-                        "Please assign faculty workload before generating."
-                    )
-                )
-                self.generate_button.configure(
-                    state="disabled"
-                )
+                self.status_label.setText(f"No workloads found {scope_desc}. Please allocate workloads before generating.")
+                self.btn_generate.setEnabled(False)
             else:
-                self.status_label.configure(
-                    text=(
-                        f"{total} workload assignment(s) ready {scope_desc} ({total_periods} periods to schedule)."
-                    )
-                )
-                self.generate_button.configure(
-                    state="normal"
-                )
+                self.status_label.setText(f"{total} workload assignment(s) verified {scope_desc} ({total_periods} teaching periods to schedule). Ready to generate.")
+                self.btn_generate.setEnabled(True)
 
         except Exception as error:
-            self.status_label.configure(
-                text=f"Unable to load workload information: {error}"
-            )
-            self.generate_button.configure(
-                state="disabled"
-            )
+            self.status_label.setText(f"Unable to load workload information: {error}")
+            self.btn_generate.setEnabled(False)
 
-    # ========================================================
-    # GENERATE
-    # ========================================================
+    def load_data(self):
+        self.load_workload_summary()
 
     def generate(self):
-
-        workloads = get_all_workloads()
-
+        workloads = get_all_workloads() or []
         if self.selected_class_id is not None:
-            workloads = [w for w in workloads if w[2] == self.selected_class_id]
+            workloads = [w for w in workloads if (len(w) > 4 and w[4] == self.selected_class_id) or (len(w) > 2 and w[2] == self.selected_class_id)]
 
         if not workloads:
-            messagebox.showwarning(
+            QMessageBox.warning(
+                self,
                 "No Workload",
-                "No faculty workload is available for the selected scope.\n\nPlease assign workload first.",
-                parent=self.window
+                "No faculty workload is available for the selected scope.\n\nPlease assign workload first."
             )
             return
 
@@ -488,117 +336,76 @@ class GenerateTimetableWindow:
             else "Generate a new timetable for ALL classes?\n\nAll existing timetable entries will be replaced."
         )
 
-        confirm = messagebox.askyesno(
+        confirm = QMessageBox.question(
+            self,
             "Confirm Generation",
             scope_msg,
-            parent=self.window
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if not confirm:
+        if confirm != QMessageBox.StandardButton.Yes:
             return
 
-        orig_text = self.generate_button.cget("text")
-        self.generate_button.configure(
-            state="disabled",
-            text="Generating..."
-        )
-
-        self.refresh_button.configure(
-            state="disabled"
-        )
-
-        self.status_label.configure(
-            text="Generating timetable schedule. Please wait..."
-        )
-
-        self.window.update_idletasks()
+        self.btn_generate.setEnabled(False)
+        self.btn_generate.setText("Generating Timetable...")
+        self.btn_refresh.setEnabled(False)
+        self.status_label.setText("Solving schedule constraints and placing conflict-free slots...")
+        self.progress_bar.setValue(35)
+        QApplication.processEvents()
 
         try:
-            result = generate_timetable(target_class_id=self.selected_class_id)
+            self.progress_bar.setValue(70)
+            QApplication.processEvents()
+
+            mode = "random" if self.radio_random.isChecked() else "efficient"
+            mode_desc = "Randomized" if mode == "random" else "Efficient"
+            self.status_label.setText(f"Solving schedule constraints ({mode_desc} mode)...")
+
+            result = generate_timetable(target_class_id=self.selected_class_id, mode=mode)
 
             if result:
-                timetable = get_all_timetable()
-
-                self.status_label.configure(
-                    text=(
-                        "Timetable generated successfully! "
-                        f"{len(timetable)} total slot(s) currently active."
-                    )
-                )
-
-                self.view_button.configure(
-                    state="normal"
-                )
+                timetable = get_all_timetable() or []
+                self.progress_bar.setValue(100)
+                self.status_label.setText(f"Timetable generated successfully ({mode_desc} mode)! {len(timetable)} total active slots.")
 
                 succ_msg = (
-                    "Timetable generated successfully for selected class!\n\nNo clashes with existing classes."
+                    f"Timetable generated successfully for selected class ({mode_desc} mode)!\n\nNo clashes with existing classes."
                     if self.selected_class_id is not None
-                    else f"Complete system timetable generated successfully!\n\nTotal slots created: {len(timetable)}"
+                    else f"Complete college timetable generated successfully ({mode_desc} mode)!\n\nTotal slots created: {len(timetable)}"
                 )
 
-                messagebox.showinfo(
-                    "Generation Complete",
-                    succ_msg,
-                    parent=self.window
-                )
+                self.load_workload_summary()
+                QMessageBox.information(self, "Generation Complete", succ_msg)
+            else:
+                self.progress_bar.setValue(0)
+                self.status_label.setText("Timetable generation failed to solve all constraints.")
+                QMessageBox.critical(self, "Generation Failed", "Could not satisfy all constraints. Please verify faculty workload capacity.")
 
         except ValueError as error:
-            self.status_label.configure(
-                text="Timetable generation could not be completed."
-            )
-            messagebox.showerror(
-                "Generation Failed",
-                str(error),
-                parent=self.window
-            )
-
+            self.progress_bar.setValue(0)
+            self.status_label.setText("Timetable generation failed.")
+            QMessageBox.critical(self, "Generation Failed", f"Generation Error:\n{error}")
         except Exception as error:
-            self.status_label.configure(
-                text="Unexpected error during generation."
-            )
-            messagebox.showerror(
-                "Error",
-                f"An unexpected error occurred while generating:\n\n{error}",
-                parent=self.window
-            )
-
+            self.progress_bar.setValue(0)
+            self.status_label.setText("Unexpected error occurred.")
+            QMessageBox.critical(self, "Generation Error", f"An unexpected error occurred:\n{error}")
         finally:
-            self.generate_button.configure(
-                state="normal",
-                text=orig_text
-            )
-            self.refresh_button.configure(
-                state="normal"
-            )
+            self.btn_generate.setEnabled(True)
+            self.btn_generate.setText("Start Timetable Generation")
+            self.btn_refresh.setEnabled(True)
 
-    # ========================================================
-    # OPEN TIMETABLE
-    # ========================================================
-
-    def open_timetable(self):
-        try:
-            from ui.view_timetable import ViewTimetableWindow
-
-            if not self.embedded:
-                self.window.grab_release()
-
-            if self.navigate:
-                self.navigate("view_timetable")
-            else:
-                ViewTimetableWindow(self.parent)
-
-        except Exception as error:
-            messagebox.showerror(
-                "Error",
-                str(error),
-                parent=self.window
-            )
+    def go_to_view_timetable(self):
+        if self.navigate:
+            self.navigate("view_timetable")
 
 
 if __name__ == "__main__":
     from database.database import create_tables
-    create_tables()
+    from ui.theme import apply_theme
 
-    root = ctk.CTk()
-    GenerateTimetableWindow(root)
-    root.mainloop()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = GenerateTimetableWindow()
+    win.show()
+    sys.exit(app.exec())

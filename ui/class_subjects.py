@@ -1,9 +1,20 @@
-import customtkinter as ctk
-from tkinter import messagebox
+"""
+Class - Subject Assignment Window & Embedded Widget in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QFrame, QScrollArea, QAbstractItemView
+)
 
 from database.database import (
     get_all_classes,
-    get_subjects_for_class_assignment,
+    get_all_subjects,
+    get_all_faculty,
     assign_subject_to_class,
     get_all_class_subjects,
     get_class_subjects_by_class,
@@ -11,992 +22,346 @@ from database.database import (
 )
 
 
-class ClassSubjectsWindow:
-
-    def __init__(
-        self,
-        parent,
-        preselected_class_id=None,
-        container=None
-    ):
-
+class ClassSubjectsWindow(QWidget):
+    def __init__(self, parent=None, preselected_class_id=None, container=None):
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.embedded = container is not None
-        self.window = container if self.embedded else ctk.CTkToplevel(parent)
+        self.preselected_class_id = preselected_class_id
+        self.selected_mapping_id = None
+
+        self.classes_data = []
+        self.subjects_data = []
+        self.faculty_data = []
 
         if not self.embedded:
-            self.window.title("Class - Subject Assignment")
-            self.window.geometry("1150x680")
-            self.window.minsize(1000, 600)
-            self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+            self.setWindowTitle("Class - Subject Assignment - Smart Academic Timetable Management System")
+            self.resize(1150, 680)
+            self.setMinimumSize(1000, 600)
 
-        self.preselected_class_id = (
-            preselected_class_id
-        )
+        self.setup_ui()
+        self.load_dropdowns()
+        self.load_assigned_subjects()
 
-        self.classes = []
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-        self.available_subjects = []
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        # =================================================
-        # MAIN FRAME
-        # =================================================
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-        self.main_frame = ctk.CTkScrollableFrame(
-            self.window,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=0
-        )
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll.setWidget(scroll_content)
 
-        self.main_frame.pack(
-            fill="both",
-            expand=True
-        )
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
 
-        # =================================================
-        # TITLE
-        # =================================================
+        # =====================================================
+        # HEADER
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        title = ctk.CTkLabel(
-            self.main_frame,
-            text="Class - Subject Assignment",
-            font=ctk.CTkFont(
-                size=26,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        lbl_title = QLabel("Class - Subject Assignment")
+        lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        lbl_sub = QLabel("Map curriculum subjects and assigned faculty to specific academic classes")
+        lbl_sub.setProperty("secondary", True)
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        title.pack(
-            anchor="w",
-            padx=30,
-            pady=(25, 5)
-        )
+        main_layout.addWidget(header_card)
 
-        # =================================================
-        # SUBTITLE
-        # =================================================
+        # =====================================================
+        # ASSIGNMENT FORM CARD
+        # =====================================================
+        form_card = QFrame()
+        form_card.setObjectName("Card")
+        form_layout = QVBoxLayout(form_card)
+        form_layout.setContentsMargins(25, 20, 25, 25)
+        form_layout.setSpacing(15)
 
-        subtitle = ctk.CTkLabel(
-            self.main_frame,
-            text=(
-                "Assign subjects to academic classes. "
-                "Faculty information is selected automatically."
-            ),
-            font=ctk.CTkFont(
-                size=13
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        )
+        form_title = QLabel("Assign Subject to Class")
+        form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        form_layout.addWidget(form_title)
 
-        subtitle.pack(
-            anchor="w",
-            padx=30,
-            pady=(0, 20)
-        )
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 1)
+        grid.setColumnStretch(3, 1)
 
-        # =================================================
-        # FORM FRAME
-        # =================================================
+        # Row 0: Target Class, Subject, Faculty, Hours/Week
+        lbl_cls = QLabel("Select Academic Class *")
+        lbl_cls.setStyleSheet("font-weight: 600;")
+        self.class_combo = QComboBox()
+        self.class_combo.currentIndexChanged.connect(self.on_class_change)
+        grid.addWidget(lbl_cls, 0, 0)
+        grid.addWidget(self.class_combo, 1, 0)
 
-        form_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=("#F9F9FB", "#252525"),
-            corner_radius=10
-        )
+        lbl_sub = QLabel("Select Subject *")
+        lbl_sub.setStyleSheet("font-weight: 600;")
+        self.subject_combo = QComboBox()
+        self.subject_combo.currentIndexChanged.connect(self.on_subject_change)
+        grid.addWidget(lbl_sub, 0, 1)
+        grid.addWidget(self.subject_combo, 1, 1)
 
-        form_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 15)
-        )
+        lbl_fac = QLabel("Assigned Faculty")
+        lbl_fac.setStyleSheet("font-weight: 600;")
+        self.faculty_combo = QComboBox()
+        grid.addWidget(lbl_fac, 0, 2)
+        grid.addWidget(self.faculty_combo, 1, 2)
 
-        # =================================================
-        # CLASS LABEL
-        # =================================================
+        lbl_hrs = QLabel("Hours / Week *")
+        lbl_hrs.setStyleSheet("font-weight: 600;")
+        self.hours_entry = QLineEdit("4")
+        self.hours_entry.setPlaceholderText("4")
+        grid.addWidget(lbl_hrs, 0, 3)
+        grid.addWidget(self.hours_entry, 1, 3)
 
-        class_label = ctk.CTkLabel(
-            form_frame,
-            text="Class *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        form_layout.addLayout(grid)
 
-        class_label.grid(
-            row=0,
-            column=0,
-            padx=(20, 10),
-            pady=(20, 5),
-            sticky="w"
-        )
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
 
-        # =================================================
-        # CLASS MENU
-        # =================================================
+        self.btn_assign = QPushButton("Assign Subject to Class")
+        self.btn_assign.setProperty("btnStyle", "success")
+        self.btn_assign.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_assign.clicked.connect(self.assign_subject)
+        btn_layout.addWidget(self.btn_assign)
 
-        self.class_menu = ctk.CTkOptionMenu(
-            form_frame,
-            width=330,
-            height=40,
-            values=[
-                "No classes available"
-            ],
-            command=self.class_changed
-        )
+        self.btn_delete = QPushButton("Delete Assignment")
+        self.btn_delete.setProperty("btnStyle", "danger")
+        self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_delete.clicked.connect(self.delete_assignment)
+        btn_layout.addWidget(self.btn_delete)
 
-        self.class_menu.set(
-            "No classes available"
-        )
+        btn_layout.addStretch()
+        form_layout.addLayout(btn_layout)
 
-        self.class_menu.grid(
-            row=1,
-            column=0,
-            padx=(20, 10),
-            pady=(0, 20)
-        )
+        main_layout.addWidget(form_card)
 
-        # =================================================
-        # SUBJECT LABEL
-        # =================================================
+        # =====================================================
+        # ASSIGNED SUBJECTS TABLE CARD
+        # =====================================================
+        table_card = QFrame()
+        table_card.setObjectName("Card")
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(25, 20, 25, 25)
+        table_layout.setSpacing(15)
 
-        subject_label = ctk.CTkLabel(
-            form_frame,
-            text="Subject *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(10)
 
-        subject_label.grid(
-            row=0,
-            column=1,
-            padx=10,
-            pady=(20, 5),
-            sticky="w"
-        )
+        lbl_tbl = QLabel("Assigned Class Subjects")
+        lbl_tbl.setStyleSheet("font-size: 16px; font-weight: bold;")
+        filter_layout.addWidget(lbl_tbl)
+        filter_layout.addStretch()
 
-        # =================================================
-        # SUBJECT MENU
-        # =================================================
+        filter_layout.addWidget(QLabel("Filter by Class:"))
+        self.filter_class_combo = QComboBox()
+        self.filter_class_combo.setMinimumWidth(220)
+        self.filter_class_combo.currentIndexChanged.connect(self.filter_table_by_class)
+        filter_layout.addWidget(self.filter_class_combo)
 
-        self.subject_menu = ctk.CTkOptionMenu(
-            form_frame,
-            width=380,
-            height=40,
-            values=[
-                "Select a class first"
-            ],
-            command=self.subject_changed
-        )
+        btn_show_all = QPushButton("Show All")
+        btn_show_all.setProperty("btnStyle", "secondary")
+        btn_show_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_show_all.clicked.connect(lambda: self.filter_class_combo.setCurrentIndex(0))
+        filter_layout.addWidget(btn_show_all)
 
-        self.subject_menu.set(
-            "Select a class first"
-        )
+        table_layout.addLayout(filter_layout)
 
-        self.subject_menu.grid(
-            row=1,
-            column=1,
-            padx=10,
-            pady=(0, 20)
-        )
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(7)
+        self.table.setHorizontalHeaderLabels([
+            "ID", "Class Name", "Subject Code", "Subject Name", "Faculty", "Weekly Hours", "Type"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setMinimumHeight(300)
+        self.table.itemSelectionChanged.connect(self.on_table_select)
 
-        # =================================================
-        # ASSIGN BUTTON
-        # =================================================
+        table_layout.addWidget(self.table)
+        main_layout.addWidget(table_card)
+        main_layout.addStretch()
 
-        self.assign_button = ctk.CTkButton(
-            form_frame,
-            text="Assign Subject",
-            width=150,
-            height=40,
-            command=self.assign_subject
-        )
+    def load_dropdowns(self):
+        self.classes_data = get_all_classes() or []
+        self.class_combo.clear()
+        self.filter_class_combo.clear()
+        self.filter_class_combo.addItem("All Classes", None)
 
-        self.assign_button.grid(
-            row=1,
-            column=2,
-            padx=(10, 20),
-            pady=(0, 20)
-        )
+        selected_idx = 0
+        for idx, c in enumerate(self.classes_data):
+            cid = c[0]
+            cname = c[1]
+            dept = c[2] if len(c) > 2 else ""
+            sem = c[3] if len(c) > 3 else ""
+            display = f"{cname} (Sem {sem}, {dept})"
+            self.class_combo.addItem(display, cid)
+            self.filter_class_combo.addItem(display, cid)
+            if self.preselected_class_id and cid == self.preselected_class_id:
+                selected_idx = idx
 
-        # =================================================
-        # FACULTY INFORMATION
-        # =================================================
+        if self.classes_data:
+            self.class_combo.setCurrentIndex(selected_idx)
 
-        self.faculty_info = ctk.CTkLabel(
-            form_frame,
-            text="Assigned Faculty: -",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=("#27272A", "#E4E4E7")
-        )
+        self.subjects_data = get_all_subjects() or []
+        self.subject_combo.clear()
+        for s in self.subjects_data:
+            sid = s[0]
+            code = s[1]
+            sname = s[2]
+            hrs = s[6] if len(s) > 6 else 4
+            self.subject_combo.addItem(f"{code} - {sname}", (sid, hrs))
 
-        self.faculty_info.grid(
-            row=2,
-            column=0,
-            columnspan=3,
-            padx=20,
-            pady=(0, 20),
-            sticky="w"
-        )
+        self.faculty_data = get_all_faculty() or []
+        self.faculty_combo.clear()
+        self.faculty_combo.addItem("None / Auto-Assign", None)
+        for f in self.faculty_data:
+            fid = f[0]
+            fname = f[2]
+            dept = f[3] if len(f) > 3 else ""
+            self.faculty_combo.addItem(f"{fname} ({dept})", fid)
 
-        # =================================================
-        # FILTER / SHOW ALL
-        # =================================================
+    def on_class_change(self):
+        pass
 
-        filter_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
+    def on_subject_change(self):
+        data = self.subject_combo.currentData()
+        if data and len(data) > 1:
+            self.hours_entry.setText(str(data[1] or 4))
 
-        filter_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 10)
-        )
+    def load_assigned_subjects(self, records=None):
+        if records is None:
+            records = get_all_class_subjects() or []
 
-        self.current_class_label = ctk.CTkLabel(
-            filter_frame,
-            text="Showing all class-subject assignments",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        self.records_data = records
+        self.table.setRowCount(0)
 
-        self.current_class_label.pack(
-            side="left"
-        )
+        for row_idx, rec in enumerate(records):
+            self.table.insertRow(row_idx)
+            mid = rec[0] if len(rec) > 0 else ""
+            cname = rec[4] if len(rec) > 4 else (rec[1] if len(rec) > 1 else "")
+            scode = rec[5] if len(rec) > 5 else ""
+            sname = rec[6] if len(rec) > 6 else ""
+            fname = rec[7] if len(rec) > 7 and rec[7] else "Unassigned"
+            hrs = rec[3] if len(rec) > 3 else ""
+            is_lab = "Lab" if (len(rec) > 8 and rec[8] == 1) else "Theory"
 
-        show_all_button = ctk.CTkButton(
-            filter_frame,
-            text="Show All",
-            width=100,
-            height=34,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self.show_all_assignments
-        )
+            row_items = [str(mid), str(cname), str(scode), str(sname), str(fname), str(hrs), is_lab]
+            for col_idx, text in enumerate(row_items):
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 2, 5, 6] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.table.setItem(row_idx, col_idx, item)
 
-        show_all_button.pack(
-            side="right"
-        )
+    def filter_table_by_class(self):
+        selected_cid = self.filter_class_combo.currentData()
+        if selected_cid is None:
+            self.load_assigned_subjects()
+        else:
+            records = get_class_subjects_by_class(selected_cid) or []
+            self.load_assigned_subjects(records)
 
-        # =================================================
-        # TABLE
-        # =================================================
-
-        self.table_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=("#F9F9FB", "#252525"),
-            corner_radius=10
-        )
-
-        self.table_frame.pack(
-            fill="both",
-            expand=True,
-            padx=30,
-            pady=(0, 25)
-        )
-
-        # =================================================
-        # LOAD
-        # =================================================
-
-        self.load_classes()
-
-        self.show_all_assignments()
-
-    # =====================================================
-    # CLASS DISPLAY TEXT
-    # =====================================================
-
-    def class_display_text(
-        self,
-        record
-    ):
-
-        return (
-            f"{record[1]} - "
-            f"{record[2]} - "
-            f"{record[3]} "
-            f"({record[4]})"
-        )
-
-    # =====================================================
-    # SUBJECT DISPLAY TEXT
-    # =====================================================
-
-    def subject_display_text(
-        self,
-        record
-    ):
-
-        return (
-            f"{record[1]} - "
-            f"{record[2]}"
-        )
-
-    # =====================================================
-    # LOAD CLASSES
-    # =====================================================
-
-    def load_classes(self):
-
-        self.classes = get_all_classes()
-
-        if not self.classes:
-
-            self.class_menu.configure(
-                values=[
-                    "No classes available"
-                ]
-            )
-
-            self.class_menu.set(
-                "No classes available"
-            )
-
-            self.load_subjects_for_class(
-                None
-            )
-
+    def on_table_select(self):
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            self.selected_mapping_id = None
             return
 
-        values = [
-            self.class_display_text(record)
-            for record in self.classes
-        ]
-
-        self.class_menu.configure(
-            values=values
-        )
-
-        selected_record = None
-
-        # =================================================
-        # PRESELECT CLASS
-        # =================================================
-
-        if self.preselected_class_id is not None:
-
-            for record in self.classes:
-
-                if (
-                    record[0]
-                    == self.preselected_class_id
-                ):
-
-                    selected_record = record
-
-                    break
-
-        if selected_record is None:
-
-            selected_record = self.classes[0]
-
-        self.class_menu.set(
-            self.class_display_text(
-                selected_record
-            )
-        )
-
-        self.load_subjects_for_class(
-            selected_record[0]
-        )
-
-    # =====================================================
-    # GET SELECTED CLASS
-    # =====================================================
-
-    def get_selected_class(self):
-
-        selected_text = (
-            self.class_menu.get()
-        )
-
-        for record in self.classes:
-
-            if (
-                self.class_display_text(record)
-                == selected_text
-            ):
-
-                return record
-
-        return None
-
-    # =====================================================
-    # CLASS CHANGED
-    # =====================================================
-
-    def class_changed(
-        self,
-        selected_value=None
-    ):
-
-        selected_class = (
-            self.get_selected_class()
-        )
-
-        if selected_class is None:
-
-            self.load_subjects_for_class(
-                None
-            )
-
-            return
-
-        class_id = selected_class[0]
-
-        self.load_subjects_for_class(
-            class_id
-        )
-
-        self.load_assignments_for_class(
-            class_id
-        )
-
-    # =====================================================
-    # LOAD SUBJECTS
-    # =====================================================
-
-    def load_subjects_for_class(
-        self,
-        class_id
-    ):
-
-        self.available_subjects = []
-
-        self.faculty_info.configure(
-            text="Assigned Faculty: -"
-        )
-
-        if class_id is None:
-
-            self.subject_menu.configure(
-                values=[
-                    "Select a class first"
-                ]
-            )
-
-            self.subject_menu.set(
-                "Select a class first"
-            )
-
-            return
-
-        self.available_subjects = (
-            get_subjects_for_class_assignment(
-                class_id
-            )
-        )
-
-        if not self.available_subjects:
-
-            self.subject_menu.configure(
-                values=[
-                    "No available subjects"
-                ]
-            )
-
-            self.subject_menu.set(
-                "No available subjects"
-            )
-
-            return
-
-        values = [
-            self.subject_display_text(record)
-            for record in self.available_subjects
-        ]
-
-        self.subject_menu.configure(
-            values=values
-        )
-
-        self.subject_menu.set(
-            values[0]
-        )
-
-        self.subject_changed()
-
-    # =====================================================
-    # GET SELECTED SUBJECT
-    # =====================================================
-
-    def get_selected_subject(self):
-
-        selected_text = (
-            self.subject_menu.get()
-        )
-
-        for record in self.available_subjects:
-
-            if (
-                self.subject_display_text(record)
-                == selected_text
-            ):
-
-                return record
-
-        return None
-
-    # =====================================================
-    # SUBJECT CHANGED
-    # =====================================================
-
-    def subject_changed(
-        self,
-        selected_value=None
-    ):
-
-        subject = (
-            self.get_selected_subject()
-        )
-
-        if subject is None:
-
-            self.faculty_info.configure(
-                text="Assigned Faculty: -"
-            )
-
-            return
-
-        faculty_name = subject[7]
-
-        hours_per_week = subject[5]
-
-        self.faculty_info.configure(
-            text=(
-                f"Assigned Faculty: {faculty_name}"
-                f"     |     "
-                f"Hours / Week: {hours_per_week}"
-            )
-        )
-
-    # =====================================================
-    # ASSIGN SUBJECT
-    # =====================================================
+        row = selected_items[0].row()
+        if row < len(self.records_data):
+            self.selected_mapping_id = self.records_data[row][0]
 
     def assign_subject(self):
-
-        selected_class = (
-            self.get_selected_class()
-        )
-
-        selected_subject = (
-            self.get_selected_subject()
-        )
-
-        if selected_class is None:
-
-            messagebox.showwarning(
-                "Assignment Error",
-                "Please select a class."
-            )
-
+        if self.class_combo.currentIndex() < 0 or not self.classes_data:
+            QMessageBox.warning(self, "Assignment", "Please select a valid class.")
             return
 
-        if selected_subject is None:
-
-            messagebox.showwarning(
-                "Assignment Error",
-                (
-                    "No subject is available "
-                    "for this class."
-                )
-            )
-
+        if self.subject_combo.currentIndex() < 0 or not self.subjects_data:
+            QMessageBox.warning(self, "Assignment", "Please select a valid subject.")
             return
 
-        class_id = selected_class[0]
+        class_id = self.class_combo.currentData()
+        subject_data = self.subject_combo.currentData()
+        subject_id = subject_data[0] if isinstance(subject_data, tuple) else subject_data
 
-        subject_id = selected_subject[0]
+        faculty_id = self.faculty_combo.currentData()
 
-        result = assign_subject_to_class(
-            class_id,
-            subject_id
-        )
-
-        # =================================================
-        # SUCCESS
-        # =================================================
-
-        if result == "SUCCESS":
-
-            messagebox.showinfo(
-                "Success",
-                (
-                    "Subject assigned to "
-                    "class successfully."
-                )
-            )
-
-            self.load_subjects_for_class(
-                class_id
-            )
-
-            self.load_assignments_for_class(
-                class_id
-            )
-
-        # =================================================
-        # DUPLICATE
-        # =================================================
-
-        elif result == "DUPLICATE":
-
-            messagebox.showwarning(
-                "Duplicate Assignment",
-                (
-                    "This subject is already "
-                    "assigned to this class."
-                )
-            )
-
-        # =================================================
-        # NO FACULTY
-        # =================================================
-
-        elif result == "NO_FACULTY":
-
-            messagebox.showwarning(
-                "Faculty Not Assigned",
-                (
-                    "This subject does not have "
-                    "an assigned faculty member.\n\n"
-                    "Assign a faculty member to "
-                    "the subject first."
-                )
-            )
-
-    # =====================================================
-    # SHOW ALL
-    # =====================================================
-
-    def show_all_assignments(self):
-
-        assignments = (
-            get_all_class_subjects()
-        )
-
-        self.current_class_label.configure(
-            text=(
-                "Showing all class-subject "
-                "assignments"
-            )
-        )
-
-        self.display_assignments(
-            assignments
-        )
-
-    # =====================================================
-    # LOAD CLASS ASSIGNMENTS
-    # =====================================================
-
-    def load_assignments_for_class(
-        self,
-        class_id
-    ):
-
-        assignments = (
-            get_class_subjects_by_class(
-                class_id
-            )
-        )
-
-        selected_class = (
-            self.get_selected_class()
-        )
-
-        if selected_class:
-
-            self.current_class_label.configure(
-                text=(
-                    f"Showing subjects for: "
-                    f"{selected_class[1]} "
-                    f"({selected_class[3]})"
-                )
-            )
-
-        self.display_assignments(
-            assignments
-        )
-
-    # =====================================================
-    # DISPLAY
-    # =====================================================
-
-    def display_assignments(
-        self,
-        assignments
-    ):
-
-        for widget in self.table_frame.winfo_children():
-
-            widget.destroy()
-
-        # =================================================
-        # HEADERS
-        # =================================================
-
-        headers = [
-            "Class",
-            "Semester",
-            "Subject Code",
-            "Subject",
-            "Hours/Week",
-            "Faculty",
-            "Action"
-        ]
-
-        widths = [
-            140,
-            140,
-            120,
-            230,
-            110,
-            180,
-            100
-        ]
-
-        for column, (
-            header,
-            width
-        ) in enumerate(
-            zip(
-                headers,
-                widths
-            )
-        ):
-
-            label = ctk.CTkLabel(
-                self.table_frame,
-                text=header,
-                width=width,
-                height=35,
-                font=ctk.CTkFont(
-                    size=13,
-                    weight="bold"
-                ),
-                text_color=("#18181B", "#F4F4F5"),
-                fg_color=("#E4E4E7", "#27272A"),
-                corner_radius=4
-            )
-
-            label.grid(
-                row=0,
-                column=column,
-                padx=3,
-                pady=3,
-                sticky="nsew"
-            )
-
-        # =================================================
-        # EMPTY
-        # =================================================
-
-        if not assignments:
-
-            empty_label = ctk.CTkLabel(
-                self.table_frame,
-                text=(
-                    "No class-subject "
-                    "assignments found."
-                ),
-                font=ctk.CTkFont(
-                    size=14
-                ),
-                text_color=("#71717A", "#A1A1AA")
-            )
-
-            empty_label.grid(
-                row=1,
-                column=0,
-                columnspan=7,
-                pady=35
-            )
-
+        try:
+            hrs = int(self.hours_entry.text().strip())
+            if hrs < 1 or hrs > 30:
+                raise ValueError()
+        except ValueError:
+            QMessageBox.warning(self, "Validation Error", "Hours/Week must be between 1 and 30.")
             return
 
-        # =================================================
-        # ROWS
-        # =================================================
-
-        for row_index, record in enumerate(
-            assignments,
-            start=1
-        ):
-
-            assignment_id = record[0]
-
-            class_name = record[2]
-            semester = record[4]
-
-            subject_code = record[7]
-            subject_name = record[8]
-
-            hours_per_week = record[9]
-
-            faculty_name = (
-                record[11]
-                if record[11]
-                else "Not Assigned"
-            )
-
-            values = [
-                class_name,
-                semester,
-                subject_code,
-                subject_name,
-                hours_per_week,
-                faculty_name
-            ]
-
-            for column, (
-                value,
-                width
-            ) in enumerate(
-                zip(
-                    values,
-                    widths
-                )
-            ):
-
-                label = ctk.CTkLabel(
-                    self.table_frame,
-                    text=str(value),
-                    width=width,
-                    height=38,
-                    font=ctk.CTkFont(
-                        size=12
-                    ),
-                    text_color=("#374151", "#E2E8F0"),
-                    anchor="w"
-                )
-
-                label.grid(
-                    row=row_index,
-                    column=column,
-                    padx=3,
-                    pady=2,
-                    sticky="nsew"
-                )
-
-            # =================================================
-            # DELETE
-            # =================================================
-
-            delete_button = ctk.CTkButton(
-                self.table_frame,
-                text="🗑 Delete",
-                width=90,
-                height=30,
-                fg_color="#DC2626",
-                hover_color="#B91C1C",
-                command=lambda aid=assignment_id:
-                self.confirm_delete(aid)
-            )
-
-            delete_button.grid(
-                row=row_index,
-                column=6,
-                padx=5,
-                pady=4
-            )
-
-    # =====================================================
-    # DELETE
-    # =====================================================
-
-    def confirm_delete(
-        self,
-        assignment_id
-    ):
-
-        confirm = messagebox.askyesno(
-            "Remove Subject",
-            (
-                "Are you sure you want to remove "
-                "this subject from the class?"
-            )
+        success, msg = assign_subject_to_class(
+            class_id=class_id,
+            subject_id=subject_id,
+            faculty_id=faculty_id,
+            hours_per_week=hrs
         )
 
-        if not confirm:
-
-            return
-
-        delete_class_subject(
-            assignment_id
-        )
-
-        messagebox.showinfo(
-            "Removed",
-            (
-                "Subject removed from "
-                "class successfully."
-            )
-        )
-
-        selected_class = (
-            self.get_selected_class()
-        )
-
-        if selected_class:
-
-            self.load_subjects_for_class(
-                selected_class[0]
-            )
-
-            self.load_assignments_for_class(
-                selected_class[0]
-            )
-
+        if success:
+            QMessageBox.information(self, "Success", "Subject successfully assigned to class!")
+            self.load_assigned_subjects()
         else:
+            QMessageBox.critical(self, "Error", f"Failed to assign subject:\n{msg}")
 
-            self.show_all_assignments()
-
-    # =====================================================
-    # CLOSE
-    # =====================================================
-
-    def close_window(self):
-
-        if self.embedded:
+    def delete_assignment(self):
+        if not self.selected_mapping_id:
+            QMessageBox.warning(self, "Delete", "Please select an assigned subject row to remove.")
             return
 
-        self.window.destroy()
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Removal",
+            "Are you sure you want to remove this subject assignment?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
 
+        if confirm == QMessageBox.StandardButton.Yes:
+            success, msg = delete_class_subject(self.selected_mapping_id)
+            if success:
+                QMessageBox.information(self, "Deleted", "Subject assignment removed.")
+                self.selected_mapping_id = None
+                self.load_assigned_subjects()
+            else:
+                QMessageBox.critical(self, "Error", f"Failed to remove assignment:\n{msg}")
 
-# =========================================================
-# STANDALONE TEST
-# =========================================================
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    from ui.theme import apply_theme
 
-    ctk.set_appearance_mode(
-        "light"
-    )
-
-    ctk.set_default_color_theme(
-        "dark-blue"
-    )
-
-    root = ctk.CTk()
-
-    root.withdraw()
-
-    app = ClassSubjectsWindow(
-        root
-    )
-
-    root.mainloop()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = ClassSubjectsWindow()
+    win.show()
+    sys.exit(app.exec())

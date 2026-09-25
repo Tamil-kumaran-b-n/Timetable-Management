@@ -1,5 +1,15 @@
-import customtkinter as ctk
-from tkinter import messagebox
+"""
+Classroom Management Window & Embedded Widget in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QFrame, QScrollArea, QAbstractItemView
+)
 
 from database.database import (
     add_classroom,
@@ -10,1233 +20,360 @@ from database.database import (
 )
 
 
-class ClassroomsWindow:
-
-    def __init__(self, parent, container=None):
-
+class ClassroomsWindow(QWidget):
+    def __init__(self, parent=None, container=None):
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.embedded = container is not None
-        self.window = container if self.embedded else ctk.CTkToplevel(parent)
+        self.selected_id = None
 
         if not self.embedded:
-            self.window.title("Classroom Management")
-            self.window.geometry("1150x720")
-            self.window.minsize(1000, 650)
-            self.window.protocol("WM_DELETE_WINDOW", self.close_window)
+            self.setWindowTitle("Classroom Management - Smart Academic Timetable Management System")
+            self.resize(1150, 720)
+            self.setMinimumSize(1000, 650)
 
-        self.selected_id = None
+        self.setup_ui()
+        self.load_classrooms()
 
-        # ====================================================
-        # COLORS
-        # ====================================================
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-        self.bg_color = ("#F4F4F5", "#121212")
-        self.card_color = ("#FFFFFF", "#1E1E1E")
-        self.header_color = ("#E4E4E7", "#27272A")
-        self.row_color = ("#FFFFFF", "#1E1E1E")
-        self.text_color = ("#18181B", "#F4F4F5")
-        self.secondary_text = ("#71717A", "#A1A1AA")
-        self.border_color = ("#E4E4E7", "#383838")
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        self.button_blue = "#3B92D0"
-        self.button_blue_hover = "#2F7FB9"
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-        self.delete_red = "#DC2626"
-        self.delete_red_hover = "#B91C1C"
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll.setWidget(scroll_content)
 
-        self.gray_button = "#6B7280"
-        self.gray_button_hover = "#4B5563"
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
 
-        # ====================================================
-        # MAIN CONTAINER
-        # ====================================================
-
-        self.main_frame = ctk.CTkFrame(
-            self.window,
-            fg_color=self.bg_color,
-            corner_radius=0
-        )
-
-        self.main_frame.pack(
-            fill="both",
-            expand=True
-        )
-
-        # ====================================================
+        # =====================================================
         # HEADER
-        # ====================================================
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        header_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        lbl_title = QLabel("Classroom Management")
+        lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        lbl_sub = QLabel("Add and manage lecture halls, laboratories, smart classrooms, and seating capacities")
+        lbl_sub.setProperty("secondary", True)
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        header_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(24, 4)
-        )
+        main_layout.addWidget(header_card)
 
-        title = ctk.CTkLabel(
-            header_frame,
-            text="Classroom Management",
-            font=ctk.CTkFont(
-                size=27,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        title.pack(
-            anchor="w"
-        )
-
-        subtitle = ctk.CTkLabel(
-            header_frame,
-            text=(
-                "Add and manage classrooms, laboratories "
-                "and other learning spaces."
-            ),
-            font=ctk.CTkFont(
-                size=13
-            ),
-            text_color=self.secondary_text
-        )
-
-        subtitle.pack(
-            anchor="w",
-            pady=(3, 16)
-        )
-
-        # ====================================================
+        # =====================================================
         # FORM CARD
-        # ====================================================
-
-        form_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=self.card_color,
-            corner_radius=12,
-            border_width=1,
-            border_color=self.border_color
-        )
-
-        form_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 15)
-        )
-
-        # Configure columns
-
-        form_frame.grid_columnconfigure(
-            0,
-            weight=1
-        )
-
-        form_frame.grid_columnconfigure(
-            1,
-            weight=1
-        )
-
-        form_frame.grid_columnconfigure(
-            2,
-            weight=1
-        )
-
-        # ====================================================
-        # ROOM NUMBER
-        # ====================================================
-
-        room_number_label = ctk.CTkLabel(
-            form_frame,
-            text="Room Number *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        room_number_label.grid(
-            row=0,
-            column=0,
-            padx=(20, 10),
-            pady=(16, 5),
-            sticky="w"
-        )
-
-        self.room_number_entry = ctk.CTkEntry(
-            form_frame,
-            height=38,
-            placeholder_text="Example: 01",
-            corner_radius=7,
-            border_width=1
-        )
-
-        self.room_number_entry.grid(
-            row=1,
-            column=0,
-            padx=(20, 10),
-            pady=(0, 14),
-            sticky="ew"
-        )
-
-        # ====================================================
-        # ROOM NAME
-        # ====================================================
-
-        room_name_label = ctk.CTkLabel(
-            form_frame,
-            text="Room Name *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        room_name_label.grid(
-            row=0,
-            column=1,
-            padx=10,
-            pady=(16, 5),
-            sticky="w"
-        )
-
-        self.room_name_entry = ctk.CTkEntry(
-            form_frame,
-            height=38,
-            placeholder_text="Example: BCA",
-            corner_radius=7,
-            border_width=1
-        )
-
-        self.room_name_entry.grid(
-            row=1,
-            column=1,
-            padx=10,
-            pady=(0, 14),
-            sticky="ew"
-        )
-
-        # ====================================================
-        # FLOORS
-        # ====================================================
-
-        floors_label = ctk.CTkLabel(
-            form_frame,
-            text="Floors *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        floors_label.grid(
-            row=0,
-            column=2,
-            padx=(10, 20),
-            pady=(16, 5),
-            sticky="w"
-        )
-
-        self.building_entry = ctk.CTkEntry(
-            form_frame,
-            height=38,
-            placeholder_text="Example: 1st Floor",
-            corner_radius=7,
-            border_width=1
-        )
-
-        self.building_entry.grid(
-            row=1,
-            column=2,
-            padx=(10, 20),
-            pady=(0, 14),
-            sticky="ew"
-        )
-
-        # ====================================================
-        # ROOM TYPE
-        # ====================================================
-
-        room_type_label = ctk.CTkLabel(
-            form_frame,
-            text="Room Type *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        room_type_label.grid(
-            row=2,
-            column=0,
-            padx=(20, 10),
-            pady=(2, 5),
-            sticky="w"
-        )
-
-        self.room_type_menu = ctk.CTkOptionMenu(
-            form_frame,
-            height=38,
-            values=[
-                "Classroom",
-                "Computer Lab",
-                "Laboratory",
-                "Seminar Hall",
-                "Auditorium"
-            ],
-            corner_radius=7,
-            fg_color=self.button_blue,
-            button_color=self.button_blue,
-            button_hover_color=self.button_blue_hover
-        )
-
-        self.room_type_menu.set(
-            "Classroom"
-        )
-
-        self.room_type_menu.grid(
-            row=3,
-            column=0,
-            padx=(20, 10),
-            pady=(0, 16),
-            sticky="ew"
-        )
-
-        # ====================================================
-        # CAPACITY
-        # ====================================================
-
-        capacity_label = ctk.CTkLabel(
-            form_frame,
-            text="Capacity *",
-            font=ctk.CTkFont(
-                size=13,
-                weight="bold"
-            ),
-            text_color=self.text_color
-        )
-
-        capacity_label.grid(
-            row=2,
-            column=1,
-            padx=10,
-            pady=(2, 5),
-            sticky="w"
-        )
-
-        self.capacity_entry = ctk.CTkEntry(
-            form_frame,
-            height=38,
-            placeholder_text="Example: 40",
-            corner_radius=7,
-            border_width=1
-        )
-
-        self.capacity_entry.grid(
-            row=3,
-            column=1,
-            padx=10,
-            pady=(0, 16),
-            sticky="ew"
-        )
-
-        # ====================================================
-        # BUTTON BAR
-        # ====================================================
-
-        button_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color="transparent"
-        )
-
-        button_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 14)
-        )
-
-        self.add_button = ctk.CTkButton(
-            button_frame,
-            text="Add Classroom",
-            width=140,
-            height=38,
-            corner_radius=7,
-            fg_color=self.button_blue,
-            hover_color=self.button_blue_hover,
-            command=self.add_classroom_record
-        )
-
-        self.add_button.pack(
-            side="left",
-            padx=(0, 10)
-        )
-
-        self.update_button = ctk.CTkButton(
-            button_frame,
-            text="Update",
-            width=110,
-            height=38,
-            corner_radius=7,
-            fg_color=self.button_blue,
-            hover_color=self.button_blue_hover,
-            command=self.update_classroom_record
-        )
-
-        self.update_button.pack(
-            side="left",
-            padx=(0, 10)
-        )
-
-        self.clear_button = ctk.CTkButton(
-            button_frame,
-            text="Clear",
-            width=100,
-            height=38,
-            corner_radius=7,
-            fg_color=self.gray_button,
-            hover_color=self.gray_button_hover,
-            command=self.clear_form
-        )
-
-        self.clear_button.pack(
-            side="left"
-        )
-
-        # ====================================================
-        # SEARCH BAR CARD
-        # ====================================================
-
-        search_frame = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=self.card_color,
-            corner_radius=10,
-            border_width=1,
-            border_color=self.border_color
-        )
-
-        search_frame.pack(
-            fill="x",
-            padx=30,
-            pady=(0, 12)
-        )
-
-        self.search_entry = ctk.CTkEntry(
-            search_frame,
-            height=38,
-            width=320,
-            placeholder_text="Search classroom...",
-            corner_radius=7,
-            border_width=1
-        )
-
-        self.search_entry.pack(
-            side="left",
-            padx=(12, 8),
-            pady=10
-        )
-
-        self.search_button = ctk.CTkButton(
-            search_frame,
-            text="Search",
-            width=100,
-            height=38,
-            corner_radius=7,
-            fg_color=self.button_blue,
-            hover_color=self.button_blue_hover,
-            command=self.search_records
-        )
-
-        self.search_button.pack(
-            side="left",
-            padx=5,
-            pady=10
-        )
-
-        self.show_all_button = ctk.CTkButton(
-            search_frame,
-            text="Show All",
-            width=100,
-            height=38,
-            corner_radius=7,
-            fg_color=self.gray_button,
-            hover_color=self.gray_button_hover,
-            command=self.load_classrooms
-        )
-
-        self.show_all_button.pack(
-            side="left",
-            padx=5,
-            pady=10
-        )
-
-        # ====================================================
-        # TABLE CARD
-        # ====================================================
-
-        self.table_card = ctk.CTkFrame(
-            self.main_frame,
-            fg_color=self.card_color,
-            corner_radius=10,
-            border_width=1,
-            border_color=self.border_color
-        )
-
-        self.table_card.pack(
-            fill="both",
-            expand=True,
-            padx=30,
-            pady=(0, 25)
-        )
-
-        # ====================================================
-        # SCROLLABLE TABLE
-        # ====================================================
-
-        self.table_frame = ctk.CTkScrollableFrame(
-            self.table_card,
-            fg_color="transparent",
-            corner_radius=8
-        )
-
-        self.table_frame.pack(
-            fill="both",
-            expand=True,
-            padx=8,
-            pady=8
-        )
-
-        # ====================================================
-        # INITIAL LOAD
-        # ====================================================
-
-        self.load_classrooms()
-
-    # ========================================================
-    # VALIDATION
-    # ========================================================
-
-    def validate_form(self):
-
-        room_number = (
-            self.room_number_entry
-            .get()
-            .strip()
-        )
-
-        room_name = (
-            self.room_name_entry
-            .get()
-            .strip()
-        )
-
-        floors = (
-            self.building_entry
-            .get()
-            .strip()
-        )
-
-        room_type = (
-            self.room_type_menu
-            .get()
-            .strip()
-        )
-
-        capacity = (
-            self.capacity_entry
-            .get()
-            .strip()
-        )
-
-        # --------------------------------------------
-        # ROOM NUMBER
-        # --------------------------------------------
-
-        if not room_number:
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Please enter the room number."
-            )
-
-            self.room_number_entry.focus()
-
-            return None
-
-        # --------------------------------------------
-        # ROOM NAME
-        # --------------------------------------------
-
-        if not room_name:
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Please enter the room name."
-            )
-
-            self.room_name_entry.focus()
-
-            return None
-
-        # --------------------------------------------
-        # FLOORS
-        # --------------------------------------------
-
-        if not floors:
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Please enter the floor name."
-            )
-
-            self.building_entry.focus()
-
-            return None
-
-        # --------------------------------------------
-        # ROOM TYPE
-        # --------------------------------------------
-
-        if not room_type:
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Please select a room type."
-            )
-
-            return None
-
-        # --------------------------------------------
-        # CAPACITY
-        # --------------------------------------------
-
-        if not capacity:
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Please enter the classroom capacity."
-            )
-
-            self.capacity_entry.focus()
-
-            return None
-
-        if not capacity.isdigit():
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Capacity must contain numbers only."
-            )
-
-            self.capacity_entry.focus()
-
-            return None
-
-        capacity_value = int(
-            capacity
-        )
-
-        if (
-            capacity_value < 1
-            or capacity_value > 1000
-        ):
-
-            messagebox.showwarning(
-                "Validation Error",
-                "Capacity must be between 1 and 1000."
-            )
-
-            self.capacity_entry.focus()
-
-            return None
-
-        return (
-            room_number,
-            room_name,
-            floors,
-            room_type,
-            capacity_value
-        )
-
-    # ========================================================
-    # ADD
-    # ========================================================
-
-    def add_classroom_record(self):
-
-        data = self.validate_form()
-
-        if data is None:
+        # =====================================================
+        form_card = QFrame()
+        form_card.setObjectName("Card")
+        form_layout = QVBoxLayout(form_card)
+        form_layout.setContentsMargins(25, 20, 25, 25)
+        form_layout.setSpacing(15)
+
+        form_title = QLabel("Classroom Details")
+        form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        form_layout.addWidget(form_title)
+
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 1)
+
+        # Row 0: Room Number, Room Name, Building
+        lbl_rnum = QLabel("Room Number / Code *")
+        lbl_rnum.setStyleSheet("font-weight: 600;")
+        self.room_number_entry = QLineEdit()
+        self.room_number_entry.setPlaceholderText("e.g. LH-101 or LAB-02")
+        grid.addWidget(lbl_rnum, 0, 0)
+        grid.addWidget(self.room_number_entry, 1, 0)
+
+        lbl_rname = QLabel("Room Name")
+        lbl_rname.setStyleSheet("font-weight: 600;")
+        self.room_name_entry = QLineEdit()
+        self.room_name_entry.setPlaceholderText("e.g. Turing Hall / AI Lab")
+        grid.addWidget(lbl_rname, 0, 1)
+        grid.addWidget(self.room_name_entry, 1, 1)
+
+        lbl_bld = QLabel("Building / Floor")
+        lbl_bld.setStyleSheet("font-weight: 600;")
+        self.building_entry = QLineEdit()
+        self.building_entry.setPlaceholderText("e.g. Main Block, 1st Floor")
+        grid.addWidget(lbl_bld, 0, 2)
+        grid.addWidget(self.building_entry, 1, 2)
+
+        # Row 1: Capacity, Room Type
+        lbl_cap = QLabel("Seating Capacity *")
+        lbl_cap.setStyleSheet("font-weight: 600;")
+        self.capacity_entry = QLineEdit("60")
+        self.capacity_entry.setPlaceholderText("60")
+        grid.addWidget(lbl_cap, 2, 0)
+        grid.addWidget(self.capacity_entry, 3, 0)
+
+        lbl_rtype = QLabel("Room Type *")
+        lbl_rtype.setStyleSheet("font-weight: 600;")
+        self.room_type_combo = QComboBox()
+        self.room_type_combo.addItems([
+            "Lecture Hall", "Computer Lab", "Science Lab", "Seminar Room", "Smart Classroom", "Workshop"
+        ])
+        grid.addWidget(lbl_rtype, 2, 1)
+        grid.addWidget(self.room_type_combo, 3, 1)
+
+        form_layout.addLayout(grid)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+
+        self.btn_add = QPushButton("Add Classroom")
+        self.btn_add.setProperty("btnStyle", "success")
+        self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_add.clicked.connect(self.add_classroom_record)
+        btn_layout.addWidget(self.btn_add)
+
+        self.btn_update = QPushButton("Update Selected")
+        self.btn_update.setProperty("btnStyle", "secondary")
+        self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_update.clicked.connect(self.update_classroom_record)
+        btn_layout.addWidget(self.btn_update)
+
+        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete.setProperty("btnStyle", "danger")
+        self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_delete.clicked.connect(self.delete_classroom_record)
+        btn_layout.addWidget(self.btn_delete)
+
+        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear.setProperty("btnStyle", "ghost")
+        self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.clicked.connect(self.clear_form)
+        btn_layout.addWidget(self.btn_clear)
+
+        btn_layout.addStretch()
+        form_layout.addLayout(btn_layout)
+
+        main_layout.addWidget(form_card)
+
+        # =====================================================
+        # SEARCH & TABLE CARD
+        # =====================================================
+        table_card = QFrame()
+        table_card.setObjectName("Card")
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(25, 20, 25, 25)
+        table_layout.setSpacing(15)
+
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
+
+        lbl_tbl_title = QLabel("Available Classrooms & Facilities")
+        lbl_tbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        search_layout.addWidget(lbl_tbl_title)
+        search_layout.addStretch()
+
+        self.search_entry = QLineEdit()
+        self.search_entry.setPlaceholderText("Search room number, building, type...")
+        self.search_entry.setFixedWidth(260)
+        self.search_entry.textChanged.connect(self.search_records)
+        search_layout.addWidget(self.search_entry)
+
+        btn_reset = QPushButton("Reset")
+        btn_reset.setProperty("btnStyle", "secondary")
+        btn_reset.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_reset.clicked.connect(lambda: [self.search_entry.clear(), self.load_classrooms()])
+        search_layout.addWidget(btn_reset)
+
+        table_layout.addLayout(search_layout)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "ID", "Room Number", "Room Name", "Building / Floor", "Capacity", "Room Type"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setMinimumHeight(300)
+        self.table.itemSelectionChanged.connect(self.on_table_select)
+
+        table_layout.addWidget(self.table)
+        main_layout.addWidget(table_card)
+        main_layout.addStretch()
+
+    def load_classrooms(self, records=None):
+        if records is None:
+            records = get_all_classrooms() or []
+
+        self.records_data = records
+        self.table.setRowCount(0)
+
+        for row_idx, rec in enumerate(records):
+            self.table.insertRow(row_idx)
+            for col_idx in range(min(6, len(rec))):
+                val = rec[col_idx]
+                item = QTableWidgetItem(str(val) if val is not None else "")
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 1, 4] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.table.setItem(row_idx, col_idx, item)
+
+    def on_table_select(self):
+        selected_items = self.table.selectedItems()
+        if not selected_items:
             return
 
-        (
-            room_number,
-            room_name,
-            floors,
-            room_type,
-            capacity
-        ) = data
-
-        success = add_classroom(
-            room_number,
-            room_name,
-            floors,
-            room_type,
-            capacity
-        )
-
-        if success:
-
-            messagebox.showinfo(
-                "Success",
-                "Classroom added successfully."
-            )
-
-            self.clear_form()
-
-            self.load_classrooms()
-
-        else:
-
-            messagebox.showerror(
-                "Error",
-                "Room Number already exists."
-            )
-
-    # ========================================================
-    # UPDATE
-    # ========================================================
-
-    def update_classroom_record(self):
-
-        if self.selected_id is None:
-
-            messagebox.showwarning(
-                "Update Classroom",
-                "Please select a classroom from the table first."
-            )
-
-            return
-
-        data = self.validate_form()
-
-        if data is None:
-            return
-
-        (
-            room_number,
-            room_name,
-            floors,
-            room_type,
-            capacity
-        ) = data
-
-        success = update_classroom(
-            self.selected_id,
-            room_number,
-            room_name,
-            floors,
-            room_type,
-            capacity
-        )
-
-        if success:
-
-            messagebox.showinfo(
-                "Success",
-                "Classroom updated successfully."
-            )
-
-            self.clear_form()
-
-            self.load_classrooms()
-
-        else:
-
-            messagebox.showerror(
-                "Error",
-                "Room Number already exists."
-            )
-
-    # ========================================================
-    # LOAD
-    # ========================================================
-
-    def load_classrooms(self):
-
-        classrooms = get_all_classrooms()
-
-        self.display_classrooms(
-            classrooms
-        )
-
-    # ========================================================
-    # SEARCH
-    # ========================================================
-
-    def search_records(self):
-
-        search_text = (
-            self.search_entry
-            .get()
-            .strip()
-        )
-
-        if not search_text:
-
-            self.load_classrooms()
-
-            return
-
-        results = search_classrooms(
-            search_text
-        )
-
-        self.display_classrooms(
-            results
-        )
-
-    # ========================================================
-    # DISPLAY TABLE
-    # ========================================================
-
-    def display_classrooms(
-        self,
-        classrooms
-    ):
-
-        # --------------------------------------------
-        # Clear old widgets
-        # --------------------------------------------
-
-        for widget in (
-            self.table_frame
-            .winfo_children()
-        ):
-
-            widget.destroy()
-
-        # --------------------------------------------
-        # Column configuration
-        # --------------------------------------------
-
-        columns = [
-            ("Room No.", 120),
-            ("Room Name", 190),
-            ("Floors", 160),
-            ("Room Type", 180),
-            ("Capacity", 110),
-            ("Action", 210)
-        ]
-
-        # --------------------------------------------
-        # Configure table columns
-        # --------------------------------------------
-
-        for index in range(
-            len(columns)
-        ):
-
-            self.table_frame.grid_columnconfigure(
-                index,
-                weight=0
-            )
-
-        # --------------------------------------------
-        # Header row
-        # --------------------------------------------
-
-        for column, (
-            header,
-            width
-        ) in enumerate(columns):
-
-            header_label = ctk.CTkLabel(
-                self.table_frame,
-                text=header,
-                width=width,
-                height=38,
-                fg_color=self.header_color,
-                text_color=self.text_color,
-                font=ctk.CTkFont(
-                    size=13,
-                    weight="bold"
-                ),
-                corner_radius=5,
-                anchor="center"
-            )
-
-            header_label.grid(
-                row=0,
-                column=column,
-                padx=3,
-                pady=3,
-                sticky="ew"
-            )
-
-        # --------------------------------------------
-        # Empty state
-        # --------------------------------------------
-
-        if not classrooms:
-
-            empty_label = ctk.CTkLabel(
-                self.table_frame,
-                text="No classrooms found.",
-                font=ctk.CTkFont(
-                    size=14
-                ),
-                text_color=self.secondary_text
-            )
-
-            empty_label.grid(
-                row=1,
-                column=0,
-                columnspan=6,
-                pady=35
-            )
-
-            return
-
-        # --------------------------------------------
-        # Data rows
-        # --------------------------------------------
-
-        for row_index, classroom in enumerate(
-            classrooms,
-            start=1
-        ):
-
-            record_id = classroom[0]
-
-            room_number = classroom[1]
-            room_name = classroom[2]
-            floors = classroom[3]
-            room_type = classroom[4]
-            capacity = classroom[5]
-
-            values = [
-                room_number,
-                room_name,
-                floors,
-                room_type,
-                str(capacity)
-            ]
-
-            # ----------------------------------------
-            # Row background
-            # ----------------------------------------
-
-            row_bg = ("#FFFFFF", "#1E1E1E") if row_index % 2 == 1 else ("#F9FAFB", "#242424")
-
-            # ----------------------------------------
-            # Data cells
-            # ----------------------------------------
-
-            for column, (
-                value,
-                column_info
-            ) in enumerate(
-                zip(
-                    values,
-                    columns[:5]
-                )
-            ):
-
-                width = column_info[1]
-
-                cell = ctk.CTkLabel(
-                    self.table_frame,
-                    text=str(value),
-                    width=width,
-                    height=42,
-                    fg_color=row_bg,
-                    text_color=("#374151", "#E2E8F0"),
-                    font=ctk.CTkFont(
-                        size=12
-                    ),
-                    anchor="w"
-                )
-
-                cell.grid(
-                    row=row_index,
-                    column=column,
-                    padx=3,
-                    pady=2,
-                    sticky="ew"
-                )
-
-                # Clicking row data selects record
-                cell.bind(
-                    "<Button-1>",
-                    lambda event,
-                    rid=record_id:
-                    self.select_classroom(rid)
-                )
-
-            # ----------------------------------------
-            # ACTION CONTAINER
-            # ----------------------------------------
-
-            action_frame = ctk.CTkFrame(
-                self.table_frame,
-                width=210,
-                height=42,
-                fg_color=row_bg,
-                corner_radius=0
-            )
-
-            action_frame.grid(
-                row=row_index,
-                column=5,
-                padx=3,
-                pady=2,
-                sticky="ew"
-            )
-
-            action_frame.grid_propagate(
-                False
-            )
-
-            # ----------------------------------------
-            # Select button
-            # ----------------------------------------
-
-            select_button = ctk.CTkButton(
-                action_frame,
-                text="Select",
-                width=68,
-                height=30,
-                corner_radius=6,
-                fg_color=self.button_blue,
-                hover_color=self.button_blue_hover,
-                font=ctk.CTkFont(
-                    size=12
-                ),
-                command=lambda rid=record_id:
-                self.select_classroom(rid)
-            )
-
-            select_button.pack(
-                side="left",
-                padx=(8, 5),
-                pady=6
-            )
-
-            # ----------------------------------------
-            # Delete button
-            # ----------------------------------------
-
-            delete_button = ctk.CTkButton(
-                action_frame,
-                text="Delete",
-                width=68,
-                height=30,
-                corner_radius=6,
-                fg_color=self.delete_red,
-                hover_color=self.delete_red_hover,
-                font=ctk.CTkFont(
-                    size=12
-                ),
-                command=lambda rid=record_id:
-                self.confirm_delete(rid)
-            )
-
-            delete_button.pack(
-                side="left",
-                padx=5,
-                pady=6
-            )
-
-    # ========================================================
-    # SELECT
-    # ========================================================
-
-    def select_classroom(
-        self,
-        record_id
-    ):
-
-        classrooms = get_all_classrooms()
-
-        selected = None
-
-        for classroom in classrooms:
-
-            if classroom[0] == record_id:
-
-                selected = classroom
-
-                break
-
-        if selected is None:
-            return
-
-        self.selected_id = selected[0]
-
-        # --------------------------------------------
-        # Room Number
-        # --------------------------------------------
-
-        self.room_number_entry.delete(
-            0,
-            "end"
-        )
-
-        self.room_number_entry.insert(
-            0,
-            selected[1]
-        )
-
-        # --------------------------------------------
-        # Room Name
-        # --------------------------------------------
-
-        self.room_name_entry.delete(
-            0,
-            "end"
-        )
-
-        self.room_name_entry.insert(
-            0,
-            selected[2]
-        )
-
-        # --------------------------------------------
-        # Floors
-        # --------------------------------------------
-
-        self.building_entry.delete(
-            0,
-            "end"
-        )
-
-        self.building_entry.insert(
-            0,
-            selected[3]
-        )
-
-        # --------------------------------------------
-        # Room Type
-        # --------------------------------------------
-
-        self.room_type_menu.set(
-            selected[4]
-        )
-
-        # --------------------------------------------
-        # Capacity
-        # --------------------------------------------
-
-        self.capacity_entry.delete(
-            0,
-            "end"
-        )
-
-        self.capacity_entry.insert(
-            0,
-            selected[5]
-        )
-
-    # ========================================================
-    # DELETE CONFIRMATION
-    # ========================================================
-
-    def confirm_delete(
-        self,
-        record_id
-    ):
-
-        confirm = messagebox.askyesno(
-            "Delete Classroom",
-            "Are you sure you want to delete this classroom?"
-        )
-
-        if not confirm:
-            return
-
-        delete_classroom(
-            record_id
-        )
-
-        if self.selected_id == record_id:
-
-            self.clear_form()
-
-        self.load_classrooms()
-
-        messagebox.showinfo(
-            "Deleted",
-            "Classroom deleted successfully."
-        )
-
-    # ========================================================
-    # CLEAR FORM
-    # ========================================================
+        row = selected_items[0].row()
+        if row < len(self.records_data):
+            rec = self.records_data[row]
+            self.selected_id = rec[0]
+            self.room_number_entry.setText(str(rec[1] or ""))
+            self.room_name_entry.setText(str(rec[2] or ""))
+            self.building_entry.setText(str(rec[3] or ""))
+            self.capacity_entry.setText(str(rec[4] or "60"))
+            if len(rec) > 5 and rec[5]:
+                self.room_type_combo.setCurrentText(str(rec[5]))
 
     def clear_form(self):
-
         self.selected_id = None
+        self.room_number_entry.clear()
+        self.room_name_entry.clear()
+        self.building_entry.clear()
+        self.capacity_entry.setText("60")
+        self.room_type_combo.setCurrentIndex(0)
+        self.table.clearSelection()
 
-        self.room_number_entry.delete(
-            0,
-            "end"
-        )
+    def validate_inputs(self):
+        rnum = self.room_number_entry.text().strip()
+        cap_str = self.capacity_entry.text().strip()
 
-        self.room_name_entry.delete(
-            0,
-            "end"
-        )
+        if not rnum:
+            QMessageBox.warning(self, "Validation Error", "Room Number is required.")
+            self.room_number_entry.setFocus()
+            return False
 
-        self.building_entry.delete(
-            0,
-            "end"
-        )
+        try:
+            cap = int(cap_str)
+            if cap < 1 or cap > 1000:
+                raise ValueError()
+        except ValueError:
+            QMessageBox.warning(self, "Validation Error", "Capacity must be an integer between 1 and 1000.")
+            self.capacity_entry.setFocus()
+            return False
 
-        self.room_type_menu.set(
-            "Classroom"
-        )
+        return True
 
-        self.capacity_entry.delete(
-            0,
-            "end"
-        )
-
-    # ========================================================
-    # CLOSE
-    # ========================================================
-
-    def close_window(self):
-
-        if self.embedded:
+    def add_classroom_record(self):
+        if not self.validate_inputs():
             return
 
-        self.window.destroy()
+        rnum = self.room_number_entry.text().strip()
+        rname = self.room_name_entry.text().strip() or None
+        bld = self.building_entry.text().strip() or None
+        cap = int(self.capacity_entry.text().strip())
+        rtype = self.room_type_combo.currentText()
 
+        success, msg = add_classroom(
+            room_number=rnum,
+            room_name=rname,
+            building=bld,
+            capacity=cap,
+            room_type=rtype
+        )
 
-# ============================================================
-# STANDALONE TEST
-# ============================================================
+        if success:
+            QMessageBox.information(self, "Success", "Classroom added successfully!")
+            self.clear_form()
+            self.load_classrooms()
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to add classroom:\n{msg}")
+
+    def update_classroom_record(self):
+        if not self.selected_id:
+            QMessageBox.warning(self, "Update", "Please select a classroom from the table to update.")
+            return
+
+        if not self.validate_inputs():
+            return
+
+        rnum = self.room_number_entry.text().strip()
+        rname = self.room_name_entry.text().strip() or None
+        bld = self.building_entry.text().strip() or None
+        cap = int(self.capacity_entry.text().strip())
+        rtype = self.room_type_combo.currentText()
+
+        success, msg = update_classroom(
+            classroom_db_id=self.selected_id,
+            room_number=rnum,
+            room_name=rname,
+            building=bld,
+            capacity=cap,
+            room_type=rtype
+        )
+
+        if success:
+            QMessageBox.information(self, "Success", "Classroom updated successfully!")
+            self.clear_form()
+            self.load_classrooms()
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to update classroom:\n{msg}")
+
+    def delete_classroom_record(self):
+        if not self.selected_id:
+            QMessageBox.warning(self, "Delete", "Please select a classroom from the table to delete.")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            f"Are you sure you want to delete classroom '{self.room_number_entry.text().strip()}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if confirm == QMessageBox.StandardButton.Yes:
+            success, msg = delete_classroom(self.selected_id)
+            if success:
+                QMessageBox.information(self, "Deleted", "Classroom deleted successfully.")
+                self.clear_form()
+                self.load_classrooms()
+            else:
+                QMessageBox.critical(self, "Error", f"Failed to delete classroom:\n{msg}")
+
+    def search_records(self, text):
+        query = text.strip()
+        if not query:
+            self.load_classrooms()
+        else:
+            records = search_classrooms(query) or []
+            self.load_classrooms(records)
+
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    from ui.theme import apply_theme
 
-    ctk.set_appearance_mode(
-        "light"
-    )
-
-    ctk.set_default_color_theme(
-        "dark-blue"
-    )
-
-    root = ctk.CTk()
-
-    root.withdraw()
-
-    app = ClassroomsWindow(
-        root
-    )
-
-    root.mainloop()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = ClassroomsWindow()
+    win.show()
+    sys.exit(app.exec())

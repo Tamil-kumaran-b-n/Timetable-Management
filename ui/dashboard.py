@@ -1,4 +1,14 @@
-import customtkinter as ctk
+"""
+Main Application Dashboard in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QPushButton, QFrame, QScrollArea,
+    QMessageBox, QStackedWidget, QSizePolicy
+)
 
 from ui.faculty import FacultyWindow
 from ui.subjects import SubjectsWindow
@@ -7,956 +17,190 @@ from ui.classes import ClassesWindow
 from ui.generate import GenerateTimetableWindow
 from ui.view_timetable import ViewTimetableWindow
 from ui.assignments import AssignmentsWindow
+from ui.theme import apply_theme, apply_scaling
 
 from database.database import (
     get_all_faculty,
     get_all_subjects,
     get_all_classrooms,
     get_app_setting,
-    set_app_setting
+    set_app_setting,
+    get_connection
 )
-
-from database.generator import (
-    get_all_timetable
-)
+from database.generator import get_all_timetable
 
 
-class Dashboard:
-
-    def __init__(self, window=None, current_user=None):
-
+class Dashboard(QMainWindow):
+    def __init__(self, parent=None, current_user=None, window=None):
+        super().__init__(parent)
         self.current_user = current_user or {"username": "Administrator", "role": "Administrator"}
 
-        # Apply saved appearance and scaling settings
-        saved_mode = get_app_setting("appearance_mode", "Light")
-        ctk.set_appearance_mode(saved_mode)
-        ctk.set_default_color_theme("dark-blue")
+        self.setWindowTitle("Smart Academic Timetable Management System")
+        self.resize(1200, 720)
+        self.setMinimumSize(950, 620)
 
-        saved_scaling = get_app_setting("ui_scaling", "100%")
-        try:
-            scale_factor = float(saved_scaling.replace("%", "").strip()) / 100.0
-            ctk.set_widget_scaling(scale_factor)
-        except Exception:
-            pass
-
-        if window is not None:
-            self.window = window
-            for widget in self.window.winfo_children():
-                widget.destroy()
-        else:
-            self.window = ctk.CTk()
-
-        self.window.title(
-            "Homepage - Smart Academic Timetable Management System"
+        # Apply saved appearance settings
+        apply_theme(
+            mode=get_app_setting("appearance_mode", "Light"),
+            scale_str=get_app_setting("ui_scaling", "100%")
         )
 
-        self.window.geometry(
-            "1200x700"
-        )
-
-        self.window.minsize(
-            1000,
-            600
-        )
-
-        # Browser-style history for pages rendered in the dashboard.
+        # Navigation history
         self.history = ["home"]
         self.history_index = 0
 
-        # ====================================================
-        # STATISTIC LABELS
-        # ====================================================
+        self.nav_buttons = {}
+        self.stat_labels = {}
 
-        self.stat_value_labels = {}
+        self.setup_ui()
 
-        # ====================================================
-        # CREATE DASHBOARD
-        # ====================================================
+    def setup_ui(self):
+        central_widget = QWidget(self)
+        central_widget.setObjectName("CentralWidget")
+        self.setCentralWidget(central_widget)
 
-        self.create_dashboard()
+        root_layout = QHBoxLayout(central_widget)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-    # ========================================================
-    # CREATE DASHBOARD
-    # ========================================================
-
-    def create_dashboard(self):
-
-        # ====================================================
-        # MAIN CONTAINER
-        # ====================================================
-
-        main_frame = ctk.CTkFrame(
-            self.window,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
-
-        main_frame.pack(
-            fill="both",
-            expand=True
-        )
-
-        # ====================================================
+        # =====================================================
         # SIDEBAR
-        # ====================================================
+        # =====================================================
+        sidebar = QFrame()
+        sidebar.setObjectName("Sidebar")
+        sidebar.setFixedWidth(240)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(15, 25, 15, 20)
+        sidebar_layout.setSpacing(6)
 
-        sidebar = ctk.CTkFrame(
-            main_frame,
-            width=240,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=0
-        )
-
-        sidebar.pack(
-            side="left",
-            fill="y"
-        )
-
-        sidebar.pack_propagate(
-            False
-        )
-
-        # ====================================================
-        # APPLICATION TITLE & NAVIGATION BASED ON ROLE
-        # ====================================================
         is_admin = (self.current_user.get("role") in ["Administrator", "Admin", "admin"])
 
-        app_title_text = "SMART\nTIMETABLE" if is_admin else "FACULTY\nPORTAL"
-        app_title = ctk.CTkLabel(
-            sidebar,
-            text=app_title_text,
-            font=(
-                "Arial",
-                22,
-                "bold"
-            ),
-            text_color=("#18181B", "#F4F4F5")
-        )
+        # Title
+        app_title = QLabel("SMART\nTIMETABLE" if is_admin else "FACULTY\nPORTAL")
+        app_title.setObjectName("Heading")
+        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sidebar_layout.addWidget(app_title)
 
-        app_title.pack(
-            pady=(35, 40)
-        )
+        sidebar_layout.addSpacing(10)
 
-        nav_label = ctk.CTkLabel(
-            sidebar,
-            text="MAIN MENU" if is_admin else "FACULTY MENU",
-            font=(
-                "Arial",
-                11,
-                "bold"
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        )
+        nav_header = QLabel("MAIN MENU" if is_admin else "FACULTY MENU")
+        nav_header.setObjectName("Secondary")
+        sidebar_layout.addWidget(nav_header)
 
-        nav_label.pack(
-            anchor="w",
-            padx=25,
-            pady=(0, 12)
-        )
-
-        # ====================================================
-        # NAVIGATION BUTTONS - ADMIN VS NON-ADMIN
-        # ====================================================
+        # Nav items
+        self.nav_buttons["home"] = self.create_nav_button("Home", lambda: self.show_page("home"), sidebar_layout)
 
         if is_admin:
-            # Full admin control tabs
-            self.create_nav_button(
-                sidebar,
-                "⌂   Home",
-                self.home_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "▣   Faculty",
-                self.faculty_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "▤   Subjects",
-                self.subjects_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "▥   Classrooms",
-                self.classrooms_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "◈   Classes & Semesters",
-                self.classes_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "▦   Generate Timetable",
-                self.generate_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "☷   View Timetable",
-                self.view_timetable_clicked
-            )
+            self.nav_buttons["faculty"] = self.create_nav_button("Faculty", lambda: self.show_page("faculty"), sidebar_layout)
+            self.nav_buttons["subjects"] = self.create_nav_button("Subjects", lambda: self.show_page("subjects"), sidebar_layout)
+            self.nav_buttons["classrooms"] = self.create_nav_button("Classrooms", lambda: self.show_page("classrooms"), sidebar_layout)
+            self.nav_buttons["classes"] = self.create_nav_button("Classes & Semesters", lambda: self.show_page("classes"), sidebar_layout)
+            self.nav_buttons["assignments"] = self.create_nav_button("Faculty Workload", lambda: self.show_page("assignments"), sidebar_layout)
+            self.nav_buttons["generate"] = self.create_nav_button("Generate Timetable", lambda: self.show_page("generate"), sidebar_layout)
+            self.nav_buttons["view_timetable"] = self.create_nav_button("View Timetable", lambda: self.show_page("view_timetable"), sidebar_layout)
         else:
-            # Non-admin / Faculty only sees Home and My Timetable
-            self.create_nav_button(
-                sidebar,
-                "⌂   Home",
-                self.home_clicked
-            )
-            self.create_nav_button(
-                sidebar,
-                "☷   My Timetable",
-                self.view_timetable_clicked
-            )
+            self.nav_buttons["view_timetable"] = self.create_nav_button("My Timetable", lambda: self.show_page("view_timetable"), sidebar_layout)
 
-        # ====================================================
-        # SETTINGS & LOGOUT
-        # ====================================================
+        sidebar_layout.addStretch()
 
-        settings_button = ctk.CTkButton(
-            sidebar,
-            text="⚙   Settings",
-            height=40,
-            fg_color="transparent",
-            hover_color=("#E4E4E7", "#2E2E2E"),
-            text_color=("#374151", "#E2E8F0"),
-            anchor="w",
-            command=self.settings_clicked
-        )
+        # Bottom buttons
+        self.nav_buttons["settings"] = self.create_nav_button("Settings", lambda: self.show_page("settings"), sidebar_layout)
 
-        logout_button = ctk.CTkButton(
-            sidebar,
-            text="⎋   Logout",
-            height=38,
-            fg_color="transparent",
-            hover_color=("#FEE2E2", "#451A1A"),
-            text_color="#EF4444",
-            anchor="w",
-            font=("Arial", 13, "bold"),
-            command=self.confirm_logout
-        )
+        btn_logout = QPushButton("Logout")
+        btn_logout.setProperty("btnStyle", "outline-danger")
+        btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_logout.setMinimumHeight(38)
+        btn_logout.clicked.connect(self.confirm_logout)
+        sidebar_layout.addWidget(btn_logout)
 
-        logout_button.pack(
-            side="bottom",
-            fill="x",
-            padx=15,
-            pady=(0, 15)
-        )
+        root_layout.addWidget(sidebar)
 
-        settings_button.pack(
-            side="bottom",
-            fill="x",
-            padx=15,
-            pady=(5, 10)
-        )
+        # =====================================================
+        # RIGHT CONTENT AREA
+        # =====================================================
+        content_area = QWidget()
+        content_area.setObjectName("PageContent")
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
 
-        # ====================================================
-        # CONTENT AREA
-        # ====================================================
+        # Top Bar
+        top_bar = QFrame()
+        top_bar.setObjectName("Header")
+        top_bar.setFixedHeight(65)
+        top_bar_layout = QHBoxLayout(top_bar)
+        top_bar_layout.setContentsMargins(25, 10, 30, 10)
 
-        content = ctk.CTkFrame(
-            main_frame,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
+        # Back & Forward buttons
+        self.btn_back = QPushButton("←")
+        self.btn_back.setProperty("btnStyle", "secondary")
+        self.btn_back.setFixedSize(36, 34)
+        self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_back.setEnabled(False)
+        self.btn_back.clicked.connect(self.go_back)
+        top_bar_layout.addWidget(self.btn_back)
 
-        content.pack(
-            side="left",
-            fill="both",
-            expand=True
-        )
+        self.btn_forward = QPushButton("→")
+        self.btn_forward.setProperty("btnStyle", "secondary")
+        self.btn_forward.setFixedSize(36, 34)
+        self.btn_forward.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_forward.setEnabled(False)
+        self.btn_forward.clicked.connect(self.go_forward)
+        top_bar_layout.addWidget(self.btn_forward)
 
-        # ====================================================
-        # TOP BAR
-        # ====================================================
+        top_bar_layout.addSpacing(15)
 
-        top_bar = ctk.CTkFrame(
-            content,
-            height=75,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=0
-        )
+        # Page Title
+        self.lbl_page_title = QLabel("Homepage")
+        self.lbl_page_title.setObjectName("Heading")
+        top_bar_layout.addWidget(self.lbl_page_title)
 
-        top_bar.pack(
-            fill="x"
-        )
+        top_bar_layout.addStretch()
 
-        top_bar.pack_propagate(
-            False
-        )
-
-        self.back_button = ctk.CTkButton(
-            top_bar,
-            text="←",
-            width=36,
-            height=32,
-            state="disabled",
-            command=self.go_back
-        )
-        self.back_button.pack(side="left", padx=(20, 6))
-
-        self.forward_button = ctk.CTkButton(
-            top_bar,
-            text="→",
-            width=36,
-            height=32,
-            state="disabled",
-            command=self.go_forward
-        )
-        self.forward_button.pack(side="left", padx=(0, 16))
-
-        self.page_title = ctk.CTkLabel(
-            top_bar,
-            text="Homepage",
-            font=(
-                "Arial",
-                24,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        self.page_title.pack(
-            side="left",
-            padx=30
-        )
-
-        username_str = self.current_user.get("username", "Administrator")
+        # User Profile Badge
+        display_name = self.current_user.get("full_name") or self.current_user.get("username", "Administrator")
         role_str = self.current_user.get("role", "Administrator")
-        user_label = ctk.CTkLabel(
-            top_bar,
-            text=f"👤 {username_str} ({role_str})",
-            font=(
-                "Arial",
-                13,
-                "bold"
-            ),
-            text_color=("#3F3F46", "#D4D4D8")
-        )
+        user_badge = QLabel(f"{display_name} ({role_str})")
+        user_badge.setObjectName("UserBadge")
+        top_bar_layout.addWidget(user_badge)
 
-        user_label.pack(
-            side="right",
-            padx=30
-        )
+        content_layout.addWidget(top_bar)
 
-        # ====================================================
-        # DASHBOARD CONTENT CONTAINER
-        # ====================================================
+        # Container for pages (Stacked Widget)
+        self.page_container = QStackedWidget()
+        content_layout.addWidget(self.page_container)
 
-        self.page_container = ctk.CTkFrame(
-            content,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
+        root_layout.addWidget(content_area)
 
-        self.page_container.pack(
-            fill="both",
-            expand=True
-        )
-
+        # Show Initial Page
         self.show_page("home", add_history=False)
 
-    def build_homepage(self):
-        is_faculty = (self.current_user.get("role") == "Faculty")
-        if is_faculty:
-            self.build_faculty_homepage()
-            return
-
-        dashboard_content = ctk.CTkScrollableFrame(
-            self.page_container,
-            fg_color=("#F4F4F5", "#121212")
-        )
-
-        dashboard_content.pack(
-            fill="both",
-            expand=True,
-            padx=20,
-            pady=20
-        )
-
-        self._build_homepage_content(dashboard_content)
-
-    def _build_homepage_content(self, dashboard_content):
-
-        # ====================================================
-        # WELCOME
-        # ====================================================
-
-        welcome_title = ctk.CTkLabel(
-            dashboard_content,
-            text="Good Evening 👋",
-            font=(
-                "Arial",
-                26,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        welcome_title.pack(
-            anchor="w",
-            padx=10,
-            pady=(5, 5)
-        )
-
-        welcome_text = ctk.CTkLabel(
-            dashboard_content,
-            text=(
-                "Manage your academic timetable efficiently "
-                "from one place."
-            ),
-            font=(
-                "Arial",
-                14
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        )
-
-        welcome_text.pack(
-            anchor="w",
-            padx=10,
-            pady=(0, 25)
-        )
-
-        # ====================================================
-        # QUICK ACTIONS
-        # ====================================================
-
-        quick_title = ctk.CTkLabel(
-            dashboard_content,
-            text="Quick Actions",
-            font=(
-                "Arial",
-                19,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        quick_title.pack(
-            anchor="w",
-            padx=10,
-            pady=(0, 15)
-        )
-
-        cards_frame = ctk.CTkFrame(
-            dashboard_content,
-            fg_color="transparent"
-        )
-
-        cards_frame.pack(
-            fill="x",
-            padx=10
-        )
-
-        # Generate
-        self.create_card(
-            cards_frame,
-            "Generate Timetable",
-            "Automatically create a conflict-free timetable.",
-            "Generate",
-            self.generate_clicked,
-            0
-        )
-
-        # Faculty
-        self.create_card(
-            cards_frame,
-            "Manage Faculty",
-            "Add and manage faculty information.",
-            "Faculty",
-            self.faculty_clicked,
-            1
-        )
-
-        # Subjects
-        self.create_card(
-            cards_frame,
-            "Manage Subjects",
-            "Add subjects and assign faculty.",
-            "Subjects",
-            self.subjects_clicked,
-            2
-        )
-
-        # ====================================================
-        # ACADEMIC OVERVIEW
-        # ====================================================
-
-        stats_title = ctk.CTkLabel(
-            dashboard_content,
-            text="Academic Overview",
-            font=(
-                "Arial",
-                19,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        stats_title.pack(
-            anchor="w",
-            padx=10,
-            pady=(35, 15)
-        )
-
-        # ====================================================
-        # STATISTICS FRAME
-        # ====================================================
-
-        stats_frame = ctk.CTkFrame(
-            dashboard_content,
-            fg_color="transparent"
-        )
-
-        stats_frame.pack(
-            fill="x",
-            padx=10
-        )
-
-        for column in range(4):
-            stats_frame.grid_columnconfigure(
-                column,
-                weight=1
-            )
-
-        # ====================================================
-        # STAT CARDS
-        # ====================================================
-
-        self.create_stat(
-            stats_frame,
-            "Faculty",
-            0,
-            0
-        )
-
-        self.create_stat(
-            stats_frame,
-            "Subjects",
-            0,
-            1
-        )
-
-        self.create_stat(
-            stats_frame,
-            "Classrooms",
-            0,
-            2
-        )
-
-        self.create_stat(
-            stats_frame,
-            "Timetables",
-            0,
-            3
-        )
-
-        # ====================================================
-        # REFRESH BUTTON
-        # ====================================================
-
-        refresh_frame = ctk.CTkFrame(
-            dashboard_content,
-            fg_color="transparent"
-        )
-
-        refresh_frame.pack(
-            fill="x",
-            padx=10,
-            pady=(12, 0)
-        )
-
-        refresh_button = ctk.CTkButton(
-            refresh_frame,
-            text="↻  Refresh Overview",
-            width=150,
-            height=34,
-            corner_radius=7,
-            command=self.refresh_dashboard
-        )
-
-        refresh_button.pack(
-            anchor="e"
-        )
-
-        # ====================================================
-        # RECENT TIMETABLES
-        # ====================================================
-
-        recent_title = ctk.CTkLabel(
-            dashboard_content,
-            text="Recent Timetables",
-            font=(
-                "Arial",
-                19,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        recent_title.pack(
-            anchor="w",
-            padx=10,
-            pady=(35, 15)
-        )
-
-        self.recent_box = ctk.CTkFrame(
-            dashboard_content,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        self.recent_box.pack(
-            fill="x",
-            padx=10,
-            pady=(0, 20)
-        )
-
-        # ====================================================
-        # FIRST LOAD
-        # ====================================================
-
-        self.refresh_dashboard()
-
-    # ========================================================
-    # NAVIGATION BUTTON
-    # ========================================================
-
-    def create_nav_button(
-        self,
-        parent,
-        text,
-        command
-    ):
-
-        button = ctk.CTkButton(
-            parent,
-            text=text,
-            height=42,
-            fg_color="transparent",
-            hover_color=("#E4E4E7", "#2E2E2E"),
-            text_color=("#374151", "#E2E8F0"),
-            anchor="w",
-            font=(
-                "Arial",
-                13
-            ),
-            command=command
-        )
-
-        button.pack(
-            fill="x",
-            padx=15,
-            pady=3
-        )
-
-    # ========================================================
-    # QUICK ACTION CARD
-    # ========================================================
-
-    def create_card(
-        self,
-        parent,
-        title,
-        description,
-        button_text,
-        command,
-        column
-    ):
-
-        card = ctk.CTkFrame(
-            parent,
-            width=280,
-            height=145,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        card.grid(
-            row=0,
-            column=column,
-            padx=8,
-            sticky="nsew"
-        )
-
-        card.grid_propagate(
-            False
-        )
-
-        title_label = ctk.CTkLabel(
-            card,
-            text=title,
-            font=(
-                "Arial",
-                17,
-                "bold"
-            ),
-            text_color=("#111827", "#F8FAFC")
-        )
-
-        title_label.pack(
-            anchor="w",
-            padx=20,
-            pady=(20, 5)
-        )
-
-        description_label = ctk.CTkLabel(
-            card,
-            text=description,
-            font=(
-                "Arial",
-                12
-            ),
-            text_color=("#71717A", "#A1A1AA"),
-            wraplength=235,
-            justify="left"
-        )
-
-        description_label.pack(
-            anchor="w",
-            padx=20
-        )
-
-        action_button = ctk.CTkButton(
-            card,
-            text=button_text,
-            width=110,
-            height=32,
-            command=command
-        )
-
-        action_button.pack(
-            anchor="w",
-            padx=20,
-            pady=12
-        )
-
-    # ========================================================
-    # STAT CARD
-    # ========================================================
-
-    def create_stat(
-        self,
-        parent,
-        title,
-        value,
-        column
-    ):
-
-        card = ctk.CTkFrame(
-            parent,
-            height=100,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        card.grid(
-            row=0,
-            column=column,
-            padx=8,
-            sticky="nsew"
-        )
-
-        card.grid_propagate(
-            False
-        )
-
-        value_label = ctk.CTkLabel(
-            card,
-            text=str(value),
-            font=(
-                "Arial",
-                25,
-                "bold"
-            ),
-            text_color=("#27272A", "#E4E4E7")
-        )
-
-        value_label.pack(
-            pady=(18, 0)
-        )
-
-        title_label = ctk.CTkLabel(
-            card,
-            text=title,
-            font=(
-                "Arial",
-                12
-            ),
-            text_color=("#71717A", "#A1A1AA")
-        )
-
-        title_label.pack()
-
-        self.stat_value_labels[
-            title.lower()
-        ] = value_label
-
-    # ========================================================
-    # REFRESH DASHBOARD STATISTICS
-    # ========================================================
-
-    def refresh_dashboard(self):
-        try:
-            from database.database import get_connection
-            conn = get_connection()
-            cursor = conn.execute("""
-                SELECT
-                    (SELECT COUNT(*) FROM faculty),
-                    (SELECT COUNT(*) FROM subjects),
-                    (SELECT COUNT(*) FROM classrooms),
-                    (SELECT COUNT(*) FROM timetable)
-            """)
-            row = cursor.fetchone()
-            conn.close()
-            faculty_count, subject_count, classroom_count, timetable_count = row if row else (0, 0, 0, 0)
-        except Exception:
-            faculty_count = subject_count = classroom_count = timetable_count = 0
-
-        if "faculty" in self.stat_value_labels:
-            self.stat_value_labels["faculty"].configure(text=str(faculty_count))
-
-        if "subjects" in self.stat_value_labels:
-            self.stat_value_labels["subjects"].configure(text=str(subject_count))
-
-        if "classrooms" in self.stat_value_labels:
-            self.stat_value_labels["classrooms"].configure(text=str(classroom_count))
-
-        if "timetables" in self.stat_value_labels:
-            self.stat_value_labels["timetables"].configure(text=str(timetable_count))
-
-        self.refresh_recent_timetables(timetable_count)
-
-    # ========================================================
-    # RECENT TIMETABLES
-    # ========================================================
-
-    def refresh_recent_timetables(self, timetable_count=None):
-        if not hasattr(self, "recent_box"):
-            return
-
-        for widget in self.recent_box.winfo_children():
-            widget.destroy()
-
-        if timetable_count is None:
-            try:
-                from database.database import get_connection
-                conn = get_connection()
-                cursor = conn.execute("SELECT COUNT(*) FROM timetable")
-                timetable_count = cursor.fetchone()[0]
-                conn.close()
-            except Exception:
-                timetable_count = 0
-
-        if timetable_count == 0:
-            no_data = ctk.CTkLabel(
-                self.recent_box,
-                text="No timetables generated yet.",
-                font=("Arial", 14),
-                text_color=("#9CA3AF", "#64748B")
-            )
-            no_data.pack(pady=35)
-            return
-
-        info = ctk.CTkLabel(
-            self.recent_box,
-            text=f"{timetable_count} timetable slot(s) are currently generated and active.",
-            font=("Arial", 14),
-            text_color=("#374151", "#E2E8F0")
-        )
-        info.pack(anchor="w", padx=20, pady=(18, 5))
-
-        status = ctk.CTkLabel(
-            self.recent_box,
-            text="The generated schedule can be viewed and exported from the View Timetable section.",
-            font=("Arial", 12),
-            text_color=("#71717A", "#A1A1AA")
-        )
-        status.pack(anchor="w", padx=20, pady=(0, 18))
-
-    # ========================================================
-    # HOME
-    # ========================================================
-
-    def home_clicked(self):
-        self.show_page("home")
-
-    # ========================================================
-    # FACULTY
-    # ========================================================
-
-    def faculty_clicked(self):
-        self.show_page("faculty")
-
-    # ========================================================
-    # SUBJECTS
-    # ========================================================
-
-    def subjects_clicked(self):
-        self.show_page("subjects")
-
-    # ========================================================
-    # CLASSROOMS
-    # ========================================================
-
-    def classrooms_clicked(self):
-        self.show_page("classrooms")
-
-    # ========================================================
-    # CLASSES & SEMESTERS
-    # ========================================================
-
-    def classes_clicked(self):
-        self.show_page("classes")
-
-    # ========================================================
-    # GENERATE TIMETABLE
-    # ========================================================
-
-    def generate_clicked(self):
-        self.show_page("generate")
-
-    # ========================================================
-    # VIEW TIMETABLE
-    # ========================================================
-
-    def view_timetable_clicked(self):
-        self.show_page("view_timetable")
-
-    # ========================================================
-    # SETTINGS
-    # ========================================================
-
-    def settings_clicked(self):
-        self.show_page("settings")
-
-    # ========================================================
-    # IN-PLACE PAGE NAVIGATION (CLEARS OLD PAGE 100% CLEANLY)
-    # ========================================================
+    def create_nav_button(self, text, command, parent_layout):
+        btn = QPushButton(text)
+        btn.setProperty("btnStyle", "nav")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setMinimumHeight(40)
+        btn.clicked.connect(command)
+        parent_layout.addWidget(btn)
+        return btn
+
+    def update_nav_active(self, current_page):
+        for page_key, btn in self.nav_buttons.items():
+            is_active = (page_key == current_page)
+            btn.setProperty("active", is_active)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
     def show_page(self, page, add_history=True):
         is_admin = (self.current_user.get("role") in ["Administrator", "Admin", "admin"])
-
-        # Restrict non-admin users from accessing any admin management pages
         if not is_admin and page in ["faculty", "subjects", "classrooms", "classes", "assignments", "generate"]:
             page = "home"
 
         if add_history:
-            if self.history[self.history_index] == page:
-                return
-            self.history = self.history[:self.history_index + 1]
-            self.history.append(page)
-            self.history_index += 1
-
-        # Completely clean all widgets from page container so only 1 page is ever displayed
-        for child in self.page_container.winfo_children():
-            child.destroy()
+            if self.history[self.history_index] != page:
+                self.history = self.history[:self.history_index + 1]
+                self.history.append(page)
+                self.history_index += 1
 
         titles = {
             "home": "Homepage",
@@ -967,35 +211,42 @@ class Dashboard:
             "assignments": "Faculty Workload Management",
             "generate": "Generate Timetable",
             "view_timetable": "View Timetable",
-            "settings": "Settings",
+            "settings": "System & Application Settings",
         }
-        self.page_title.configure(text=titles.get(page, "Homepage"))
+        self.lbl_page_title.setText(titles.get(page, "Homepage"))
+        self.update_nav_active(page)
+
+        # Clear existing page inside page_container and construct new widget
+        while self.page_container.count() > 0:
+            w = self.page_container.widget(0)
+            self.page_container.removeWidget(w)
+            w.deleteLater()
 
         if page == "home":
-            self.build_homepage()
+            new_widget = self.build_home_page()
         elif page == "faculty":
-            FacultyWindow(self.window, container=self.page_container, navigate=self.show_page)
+            new_widget = FacultyWindow(parent=self, navigate=self.show_page)
         elif page == "subjects":
-            SubjectsWindow(self.window, container=self.page_container)
+            new_widget = SubjectsWindow(parent=self)
         elif page == "classrooms":
-            ClassroomsWindow(self.window, container=self.page_container)
+            new_widget = ClassroomsWindow(parent=self)
         elif page == "classes":
-            ClassesWindow(self.window, container=self.page_container)
+            new_widget = ClassesWindow(parent=self)
         elif page == "assignments":
-            AssignmentsWindow(self.window, container=self.page_container)
+            new_widget = AssignmentsWindow(parent=self)
         elif page == "generate":
-            GenerateTimetableWindow(self.window, container=self.page_container, navigate=self.show_page)
+            new_widget = GenerateTimetableWindow(parent=self, navigate=self.show_page)
         elif page == "view_timetable":
             is_faculty = (self.current_user.get("role") == "Faculty")
-            ViewTimetableWindow(
-                self.window,
-                container=self.page_container,
-                faculty_user=self.current_user if is_faculty else None
-            )
+            new_widget = ViewTimetableWindow(parent=self, faculty_user=self.current_user if is_faculty else None)
         else:
-            self.build_settings_page()
+            new_widget = self.build_settings_page()
 
-        self.update_navigation_buttons()
+        self.page_container.addWidget(new_widget)
+        self.page_container.setCurrentWidget(new_widget)
+
+        self.btn_back.setEnabled(self.history_index > 0)
+        self.btn_forward.setEnabled(self.history_index < len(self.history) - 1)
 
     def go_back(self):
         if self.history_index > 0:
@@ -1007,278 +258,406 @@ class Dashboard:
             self.history_index += 1
             self.show_page(self.history[self.history_index], add_history=False)
 
-    def update_navigation_buttons(self):
-        self.back_button.configure(
-            state="normal" if self.history_index > 0 else "disabled"
-        )
-        self.forward_button.configure(
-            state=("normal" if self.history_index < len(self.history) - 1
-                   else "disabled")
-        )
+    # =====================================================
+    # HOMEPAGE BUILDER
+    # =====================================================
+    def build_home_page(self):
+        is_faculty = (self.current_user.get("role") == "Faculty")
+        if is_faculty:
+            return self.build_faculty_home()
 
-    def build_faculty_homepage(self):
-        content = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
-        content.pack(fill="both", expand=True, padx=24, pady=24)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        content.setObjectName("ScrollContent")
+        content.setMinimumWidth(850)
+        scroll.setWidget(content)
 
-        user_name = self.current_user.get("username", "Faculty")
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(35, 30, 35, 35)
+        layout.setSpacing(25)
 
-        # Greeting banner
-        header = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
-        header.pack(fill="x", pady=(0, 20))
+        # Welcome banner
+        banner = QFrame()
+        banner.setObjectName("Card")
+        banner_layout = QVBoxLayout(banner)
+        banner_layout.setContentsMargins(25, 20, 25, 20)
+        banner_layout.setSpacing(4)
 
-        inner = ctk.CTkFrame(header, fg_color="transparent")
-        inner.pack(fill="x", padx=25, pady=20)
+        lbl_greet = QLabel("Good Day")
+        lbl_greet.setObjectName("Heading")
+        lbl_sub = QLabel("Manage your college academic timetable and schedules efficiently from one central dashboard.")
+        lbl_sub.setObjectName("Secondary")
 
-        ctk.CTkLabel(
-            inner,
-            text=f"Welcome, {user_name} 👋",
-            font=("Arial", 26, "bold"),
-            text_color=("#111827", "#F8FAFC")
-        ).pack(anchor="w")
+        banner_layout.addWidget(lbl_greet)
+        banner_layout.addWidget(lbl_sub)
+        layout.addWidget(banner)
 
-        ctk.CTkLabel(
-            inner,
-            text="Faculty Academic Portal • View your allocated classes, lecture slots, and teaching schedules.",
-            font=("Arial", 14),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(anchor="w", pady=(4, 0))
+        # Quick Actions
+        lbl_qa = QLabel("Quick Actions")
+        lbl_qa.setObjectName("SectionTitle")
+        layout.addWidget(lbl_qa)
 
-        # Main Action Card: My Timetable
-        tt_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
-        tt_card.pack(fill="x", pady=(0, 20))
+        qa_layout = QHBoxLayout()
+        qa_layout.setSpacing(16)
 
-        tt_inner = ctk.CTkFrame(tt_card, fg_color="transparent")
-        tt_inner.pack(fill="x", padx=25, pady=20)
+        qa_layout.addWidget(self.create_action_card(
+            "Generate Timetable",
+            "Automatically solve and generate a conflict-free schedule.",
+            "Generate",
+            lambda: self.show_page("generate")
+        ))
+        qa_layout.addWidget(self.create_action_card(
+            "Manage Faculty",
+            "Add faculty profiles, qualifications, and max hours.",
+            "Faculty",
+            lambda: self.show_page("faculty")
+        ))
+        qa_layout.addWidget(self.create_action_card(
+            "Manage Subjects",
+            "Create curriculum subjects, credits, and lab requirements.",
+            "Subjects",
+            lambda: self.show_page("subjects")
+        ))
 
-        ctk.CTkLabel(
-            tt_inner,
-            text="📅   My Weekly Teaching Schedule",
-            font=("Arial", 18, "bold"),
-            text_color=("#1F2937", "#F1F5F9")
-        ).pack(anchor="w")
+        layout.addLayout(qa_layout)
 
-        ctk.CTkLabel(
-            tt_inner,
-            text="Access your complete weekly timetable with subject codes, assigned classrooms, and time slots.",
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(anchor="w", pady=(4, 16))
+        # Academic Overview Stats
+        stats_header_layout = QHBoxLayout()
+        lbl_stats = QLabel("Academic Overview")
+        lbl_stats.setObjectName("SectionTitle")
+        stats_header_layout.addWidget(lbl_stats)
+        stats_header_layout.addStretch()
 
-        btn_row = ctk.CTkFrame(tt_inner, fg_color="transparent")
-        btn_row.pack(fill="x")
+        btn_refresh = QPushButton("Refresh Overview")
+        btn_refresh.setProperty("btnStyle", "secondary")
+        btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_refresh.clicked.connect(self.refresh_stats)
+        stats_header_layout.addWidget(btn_refresh)
+        layout.addLayout(stats_header_layout)
 
-        view_btn = ctk.CTkButton(
-            btn_row,
-            text="Open My Timetable",
-            height=42,
-            width=200,
-            font=("Arial", 14, "bold"),
-            command=lambda: self.show_page("view_timetable")
-        )
-        view_btn.pack(side="left")
+        stats_grid = QGridLayout()
+        stats_grid.setSpacing(16)
+        stats_grid.setColumnStretch(0, 1)
+        stats_grid.setColumnStretch(1, 1)
+        stats_grid.setColumnStretch(2, 1)
+        stats_grid.setColumnStretch(3, 1)
 
-        # Account & Quick Guidelines Card
-        info_card = ctk.CTkFrame(content, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=14, border_width=1, border_color=("#E4E4E7", "#383838"))
-        info_card.pack(fill="x")
+        self.stat_labels["faculty"] = self.create_stat_card("Faculty Members", "0", 0, 0, stats_grid)
+        self.stat_labels["subjects"] = self.create_stat_card("Curriculum Subjects", "0", 0, 1, stats_grid)
+        self.stat_labels["classrooms"] = self.create_stat_card("Available Classrooms", "0", 0, 2, stats_grid)
+        self.stat_labels["timetables"] = self.create_stat_card("Active Timetable Slots", "0", 0, 3, stats_grid)
 
-        info_inner = ctk.CTkFrame(info_card, fg_color="transparent")
-        info_inner.pack(fill="x", padx=25, pady=20)
+        layout.addLayout(stats_grid)
 
-        ctk.CTkLabel(
-            info_inner,
-            text="ℹ️   Faculty Guidelines & Notice",
-            font=("Arial", 16, "bold"),
-            text_color=("#1F2937", "#F1F5F9")
-        ).pack(anchor="w")
+        # Recent Timetables card
+        recent_card = QFrame()
+        recent_card.setObjectName("Card")
+        recent_layout = QVBoxLayout(recent_card)
+        recent_layout.setContentsMargins(25, 20, 25, 20)
+        recent_layout.setSpacing(8)
 
-        guideline_text = (
+        lbl_rec_title = QLabel("System Timetable Status")
+        lbl_rec_title.setObjectName("Subheading")
+        recent_layout.addWidget(lbl_rec_title)
+
+        self.lbl_recent_status = QLabel("Loading timetable status...")
+        self.lbl_recent_status.setObjectName("NoticeText")
+        recent_layout.addWidget(self.lbl_recent_status)
+
+        layout.addWidget(recent_card)
+        layout.addStretch()
+
+        # Populate stats
+        self.refresh_stats()
+
+        return scroll
+
+    def create_action_card(self, title, desc, btn_text, command):
+        card = QFrame()
+        card.setObjectName("Card")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(20, 18, 20, 18)
+        card_layout.setSpacing(8)
+
+        t = QLabel(title)
+        t.setObjectName("Subheading")
+        card_layout.addWidget(t)
+
+        d = QLabel(desc)
+        d.setWordWrap(True)
+        d.setObjectName("Secondary")
+        card_layout.addWidget(d)
+        card_layout.addStretch()
+
+        b = QPushButton(btn_text)
+        b.setProperty("btnStyle", "primary")
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.clicked.connect(command)
+        card_layout.addWidget(b, 0, Qt.AlignmentFlag.AlignLeft)
+
+        return card
+
+    def create_stat_card(self, title, init_val, row, col, grid):
+        card = QFrame()
+        card.setObjectName("MetricCard")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(20, 16, 20, 16)
+        card_layout.setSpacing(4)
+
+        v = QLabel(init_val)
+        v.setObjectName("MetricValue")
+        t = QLabel(title)
+        t.setObjectName("MetricLabel")
+
+        card_layout.addWidget(v)
+        card_layout.addWidget(t)
+        grid.addWidget(card, row, col)
+        return v
+
+    def refresh_stats(self):
+        try:
+            conn = get_connection()
+            cursor = conn.execute("""
+                SELECT
+                    (SELECT COUNT(*) FROM faculty),
+                    (SELECT COUNT(*) FROM subjects),
+                    (SELECT COUNT(*) FROM classrooms),
+                    (SELECT COUNT(*) FROM timetable)
+            """)
+            row = cursor.fetchone()
+            conn.close()
+            f_count, s_count, c_count, t_count = row if row else (0, 0, 0, 0)
+        except Exception:
+            f_count = s_count = c_count = t_count = 0
+
+        if "faculty" in self.stat_labels:
+            self.stat_labels["faculty"].setText(str(f_count))
+        if "subjects" in self.stat_labels:
+            self.stat_labels["subjects"].setText(str(s_count))
+        if "classrooms" in self.stat_labels:
+            self.stat_labels["classrooms"].setText(str(c_count))
+        if "timetables" in self.stat_labels:
+            self.stat_labels["timetables"].setText(str(t_count))
+
+        if hasattr(self, "lbl_recent_status"):
+            if t_count > 0:
+                self.lbl_recent_status.setText(f"{t_count} scheduled timetable slots are currently active in the database. You can view, filter, and export the timetable from the View Timetable section.")
+            else:
+                self.lbl_recent_status.setText("No timetables generated yet. Go to Generate Timetable to create full college schedules.")
+
+    def build_faculty_home(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        content.setObjectName("ScrollContent")
+        content.setMinimumWidth(850)
+        scroll.setWidget(content)
+
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(35, 30, 35, 35)
+        layout.setSpacing(25)
+
+        display_name = self.current_user.get("full_name") or self.current_user.get("username", "Faculty")
+
+        banner = QFrame()
+        banner.setObjectName("Card")
+        b_layout = QVBoxLayout(banner)
+        b_layout.setContentsMargins(25, 20, 25, 20)
+        b_layout.setSpacing(6)
+
+        t = QLabel(f"Welcome, {display_name}")
+        t.setObjectName("Heading")
+        sub = QLabel("Faculty Academic Portal • View your allocated classes, lecture slots, and teaching schedules.")
+        sub.setObjectName("Secondary")
+
+        b_layout.addWidget(t)
+        b_layout.addWidget(sub)
+        layout.addWidget(banner)
+
+        # My Timetable Card
+        tt_card = QFrame()
+        tt_card.setObjectName("Card")
+        tt_layout = QVBoxLayout(tt_card)
+        tt_layout.setContentsMargins(25, 20, 25, 20)
+        tt_layout.setSpacing(12)
+
+        tt_title = QLabel("My Weekly Teaching Schedule")
+        tt_title.setObjectName("Subheading")
+        tt_desc = QLabel("Access your weekly lecture schedule with subject codes, allocated classrooms, and time slots.")
+        tt_desc.setObjectName("Secondary")
+
+        btn_open = QPushButton("Open My Timetable")
+        btn_open.setProperty("btnStyle", "primary")
+        btn_open.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_open.setMinimumHeight(40)
+        btn_open.clicked.connect(lambda: self.show_page("view_timetable"))
+
+        tt_layout.addWidget(tt_title)
+        tt_layout.addWidget(tt_desc)
+        tt_layout.addWidget(btn_open, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(tt_card)
+
+        # Guidelines Card
+        guide_card = QFrame()
+        guide_card.setObjectName("Card")
+        g_layout = QVBoxLayout(guide_card)
+        g_layout.setContentsMargins(25, 20, 25, 20)
+        g_layout.setSpacing(10)
+
+        g_title = QLabel("Faculty Guidelines & Notice")
+        g_title.setObjectName("Subheading")
+        g_text = QLabel(
             "• Timetables are generated and managed centrally by the Academic Administrator.\n"
             "• You can download and print a structured PDF of your weekly schedule directly from the timetable page.\n"
             "• For schedule adjustments, subject changes, or classroom reassignment, please contact the Administrator."
         )
-        ctk.CTkLabel(
-            info_inner,
-            text=guideline_text,
-            font=("Arial", 13),
-            text_color=("#52525B", "#D4D4D8"),
-            justify="left"
-        ).pack(anchor="w", pady=(8, 0))
+        g_text.setObjectName("NoticeText")
 
+        g_layout.addWidget(g_title)
+        g_layout.addWidget(g_text)
+        layout.addWidget(guide_card)
+        layout.addStretch()
+
+        return scroll
+
+    # =====================================================
+    # SETTINGS PAGE
+    # =====================================================
     def build_settings_page(self):
-        page = ctk.CTkScrollableFrame(self.page_container, fg_color=("#F4F4F5", "#121212"))
-        page.pack(fill="both", expand=True, padx=30, pady=25)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        content.setObjectName("ScrollContent")
+        content.setMinimumWidth(850)
+        scroll.setWidget(content)
 
-        # Page Header
-        header_frame = ctk.CTkFrame(page, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 20))
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(35, 30, 35, 35)
+        layout.setSpacing(20)
 
-        ctk.CTkLabel(
-            header_frame,
-            text="System & Application Settings",
-            font=("Arial", 24, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(anchor="w")
+        # 1. Theme Card
+        theme_card = QFrame()
+        theme_card.setObjectName("Card")
+        theme_layout = QVBoxLayout(theme_card)
+        theme_layout.setContentsMargins(25, 20, 25, 20)
+        theme_layout.setSpacing(12)
 
-        ctk.CTkLabel(
-            header_frame,
-            text="Configure program-wide appearance, text scaling, security, and session management.",
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(anchor="w", pady=(4, 0))
+        lbl_t = QLabel("Theme & Appearance (Dark / Light Mode)")
+        lbl_t.setObjectName("Subheading")
+        lbl_ts = QLabel("Switch between Light, Dark, or System mode across the entire application instantly.")
+        lbl_ts.setObjectName("Secondary")
 
-        # -------------------------------------------------------------
-        # 1. THEME / APPEARANCE SETTINGS CARD
-        # -------------------------------------------------------------
-        theme_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
-        theme_card.pack(fill="x", pady=(0, 20))
+        theme_layout.addWidget(lbl_t)
+        theme_layout.addWidget(lbl_ts)
 
-        theme_inner = ctk.CTkFrame(theme_card, fg_color="transparent")
-        theme_inner.pack(fill="x", padx=25, pady=20)
+        theme_btn_layout = QHBoxLayout()
+        theme_btn_layout.setSpacing(10)
+        current_theme = get_app_setting("appearance_mode", "Light")
 
-        ctk.CTkLabel(
-            theme_inner,
-            text="🎨  Theme & Appearance (Dark / Light Mode)",
-            font=("Arial", 16, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(anchor="w")
+        for m in ["Light", "Dark", "System"]:
+            b = QPushButton(m)
+            b.setProperty("btnStyle", "primary" if m == current_theme else "secondary")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda checked=False, mode=m: self.change_theme(mode))
+            theme_btn_layout.addWidget(b)
 
-        ctk.CTkLabel(
-            theme_inner,
-            text="Switch between Light, Dark, or System mode across the entire application instantly.",
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(anchor="w", pady=(2, 14))
+        theme_btn_layout.addStretch()
+        theme_layout.addLayout(theme_btn_layout)
+        layout.addWidget(theme_card)
 
-        current_mode = get_app_setting("appearance_mode", "Light")
-        self.theme_segment = ctk.CTkSegmentedButton(
-            theme_inner,
-            values=["Light", "Dark", "System"],
-            font=("Arial", 13, "bold"),
-            height=38,
-            command=self.change_appearance_mode
-        )
-        self.theme_segment.set(current_mode)
-        self.theme_segment.pack(anchor="w")
+        # 2. Scaling Card
+        scale_card = QFrame()
+        scale_card.setObjectName("Card")
+        scale_layout = QVBoxLayout(scale_card)
+        scale_layout.setContentsMargins(25, 20, 25, 20)
+        scale_layout.setSpacing(12)
 
-        # -------------------------------------------------------------
-        # 2. TEXT SIZE & INTERFACE SCALING CARD
-        # -------------------------------------------------------------
-        scale_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
-        scale_card.pack(fill="x", pady=(0, 20))
+        lbl_s = QLabel("Text Size & Interface Scaling")
+        lbl_s.setObjectName("Subheading")
+        lbl_ss = QLabel("Adjust text and element sizes program-wide for comfortable viewing.")
+        lbl_ss.setObjectName("Secondary")
 
-        scale_inner = ctk.CTkFrame(scale_card, fg_color="transparent")
-        scale_inner.pack(fill="x", padx=25, pady=20)
+        scale_layout.addWidget(lbl_s)
+        scale_layout.addWidget(lbl_ss)
 
-        ctk.CTkLabel(
-            scale_inner,
-            text="🔍  Text Size & Interface Scaling",
-            font=("Arial", 16, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(anchor="w")
+        scale_btn_layout = QHBoxLayout()
+        scale_btn_layout.setSpacing(10)
+        current_scale = get_app_setting("ui_scaling", "100%")
 
-        ctk.CTkLabel(
-            scale_inner,
-            text="Adjust text and element sizes program-wide for comfortable viewing and accessibility.",
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(anchor="w", pady=(2, 14))
+        for sc in ["80%", "90%", "100%", "110%", "120%"]:
+            b = QPushButton(sc)
+            b.setProperty("btnStyle", "primary" if sc == current_scale else "secondary")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda checked=False, scale=sc: self.change_scaling(scale))
+            scale_btn_layout.addWidget(b)
 
-        current_scaling = get_app_setting("ui_scaling", "100%")
-        self.scaling_segment = ctk.CTkSegmentedButton(
-            scale_inner,
-            values=["80%", "90%", "100%", "110%", "120%"],
-            font=("Arial", 13, "bold"),
-            height=38,
-            command=self.change_ui_scaling
-        )
-        self.scaling_segment.set(current_scaling)
-        self.scaling_segment.pack(anchor="w")
+        scale_btn_layout.addStretch()
+        scale_layout.addLayout(scale_btn_layout)
+        layout.addWidget(scale_card)
 
-        # -------------------------------------------------------------
-        # 3. ACCOUNT & SESSION CARD
-        # -------------------------------------------------------------
-        account_card = ctk.CTkFrame(page, fg_color=("#FFFFFF", "#1E1E1E"), corner_radius=12, border_width=1, border_color=("#E4E4E7", "#383838"))
-        account_card.pack(fill="x", pady=(0, 20))
+        # 3. Account Card
+        acc_card = QFrame()
+        acc_card.setObjectName("Card")
+        acc_layout = QVBoxLayout(acc_card)
+        acc_layout.setContentsMargins(25, 20, 25, 20)
+        acc_layout.setSpacing(12)
 
-        account_inner = ctk.CTkFrame(account_card, fg_color="transparent")
-        account_inner.pack(fill="x", padx=25, pady=20)
+        lbl_a = QLabel("User Account & Security")
+        lbl_a.setObjectName("Subheading")
+        acc_layout.addWidget(lbl_a)
 
-        ctk.CTkLabel(
-            account_inner,
-            text="👤  User Account & Security",
-            font=("Arial", 16, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(anchor="w")
+        display_name = self.current_user.get("full_name") or self.current_user.get("username", "Administrator")
+        info_text = QLabel(f"• Active Account: {display_name} ({self.current_user.get('role', 'Faculty')})\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)")
+        info_text.setObjectName("NoticeText")
+        acc_layout.addWidget(info_text)
 
-        user_name = self.current_user.get("username", "Administrator")
+        btn_logout = QPushButton("Log Out of Account")
+        btn_logout.setProperty("btnStyle", "danger")
+        btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_logout.setMinimumHeight(38)
+        btn_logout.clicked.connect(self.confirm_logout)
+        acc_layout.addWidget(btn_logout, 0, Qt.AlignmentFlag.AlignLeft)
 
-        info_text = f"• Active Account: {user_name}\n• Security: Salted PBKDF2 Password Encryption (SHA-256, 100,000 rounds)"
-        ctk.CTkLabel(
-            account_inner,
-            text=info_text,
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA"),
-            justify="left"
-        ).pack(anchor="w", pady=(8, 16))
+        layout.addWidget(acc_card)
+        layout.addStretch()
 
-        # Logout action
-        logout_row = ctk.CTkFrame(account_inner, fg_color="transparent")
-        logout_row.pack(fill="x")
+        return scroll
 
-        logout_btn = ctk.CTkButton(
-            logout_row,
-            text="Log Out of Account",
-            font=("Arial", 13, "bold"),
-            fg_color="#EF4444",
-            hover_color="#DC2626",
-            height=38,
-            width=180,
-            command=self.confirm_logout
-        )
-        logout_btn.pack(side="left")
-
-    def change_appearance_mode(self, mode):
-        ctk.set_appearance_mode(mode)
+    def change_theme(self, mode):
         set_app_setting("appearance_mode", mode)
+        apply_theme(mode=mode)
+        self.show_page("settings", add_history=False)
 
-    def change_ui_scaling(self, scale_str):
-        try:
-            factor = float(scale_str.replace("%", "").strip()) / 100.0
-            ctk.set_widget_scaling(factor)
-            set_app_setting("ui_scaling", scale_str)
-        except Exception:
-            pass
+    def change_scaling(self, scale_str):
+        set_app_setting("ui_scaling", scale_str)
+        apply_scaling(scale_str=scale_str)
+        self.show_page("settings", add_history=False)
 
     def confirm_logout(self):
-        from tkinter import messagebox
-        confirm = messagebox.askyesno(
+        confirm = QMessageBox.question(
+            self,
             "Logout Confirmation",
             "Are you sure you want to log out of your session?",
-            parent=self.window
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        if confirm:
+        if confirm == QMessageBox.StandardButton.Yes:
             from ui.login import LoginWindow
             from main import open_dashboard
-            LoginWindow(
-                window=self.window,
-                on_login_success=open_dashboard
-            )
-
-    # ========================================================
-    # RUN
-    # ========================================================
+            self.login_window = LoginWindow(on_login_success=open_dashboard)
+            self.login_window.show()
+            self.close()
 
     def run(self):
+        self.show()
 
-        self.window.mainloop()
-
-
-# ============================================================
-# STANDALONE TEST
-# ============================================================
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    create_tables()
 
-    dashboard = Dashboard()
-
-    dashboard.run()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    d = Dashboard()
+    d.show()
+    sys.exit(app.exec())

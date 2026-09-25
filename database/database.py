@@ -349,8 +349,10 @@ def get_faculty_for_user(username: str):
             WHERE LOWER(name) = LOWER(?)
                OR LOWER(faculty_id) = LOWER(?)
                OR LOWER(faculty_id) = LOWER(?)
+               OR LOWER(name) LIKE LOWER(?)
+            LIMIT 1
             """,
-            (username.strip(), username.strip(), f"FAC-{username.strip().upper()}")
+            (username.strip(), username.strip(), f"FAC-{username.strip().upper()}", f"%{username.strip()}%")
         )
         return cursor.fetchone()
     finally:
@@ -376,11 +378,31 @@ def authenticate_user(username: str, password: str):
 
         user_id, user_name, stored_hash, role = row
         if verify_password(password, stored_hash):
-            return {
+            user_dict = {
                 "id": user_id,
                 "username": user_name,
                 "role": role
             }
+            if role == "Faculty":
+                cursor.execute(
+                    """
+                    SELECT id, faculty_id, name, department
+                    FROM faculty
+                    WHERE LOWER(name) = LOWER(?)
+                       OR LOWER(faculty_id) = LOWER(?)
+                       OR LOWER(faculty_id) = LOWER(?)
+                       OR LOWER(name) LIKE LOWER(?)
+                    LIMIT 1
+                    """,
+                    (user_name, user_name, f"FAC-{user_name.upper()}", f"%{user_name}%")
+                )
+                fac_row = cursor.fetchone()
+                if fac_row:
+                    user_dict["faculty_id"] = fac_row[0]
+                    user_dict["faculty_code"] = fac_row[1]
+                    user_dict["full_name"] = fac_row[2]
+                    user_dict["department"] = fac_row[3]
+            return user_dict
         return None
     finally:
         conn.close()

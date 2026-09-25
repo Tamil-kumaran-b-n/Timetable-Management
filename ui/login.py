@@ -1,5 +1,14 @@
-import customtkinter as ctk
-from tkinter import messagebox
+"""
+Login and Faculty Registration screen in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QCheckBox, QComboBox,
+    QMessageBox, QFrame, QScrollArea, QSizePolicy
+)
 
 from database.database import (
     authenticate_user,
@@ -7,447 +16,335 @@ from database.database import (
     get_all_subjects,
     get_app_setting
 )
+from ui.theme import apply_theme, apply_scaling
 
 
-class LoginWindow:
-    def __init__(self, window=None, on_login_success=None):
+class LoginWindow(QMainWindow):
+    def __init__(self, parent=None, on_login_success=None, window=None):
+        super().__init__(parent)
         self.on_login_success = on_login_success
         self.current_mode = "login"  # "login" or "register"
         self.subjects_data = []
 
-        # Apply saved appearance and scaling settings
-        saved_mode = get_app_setting("appearance_mode", "Light")
-        ctk.set_appearance_mode(saved_mode)
-        ctk.set_default_color_theme("dark-blue")
+        # Setup application window
+        self.setWindowTitle("Login - Smart Academic Timetable Management System")
+        self.resize(1000, 720)
+        self.setMinimumSize(900, 650)
 
-        saved_scaling = get_app_setting("ui_scaling", "100%")
-        try:
-            scale_factor = float(saved_scaling.replace("%", "").strip()) / 100.0
-            ctk.set_widget_scaling(scale_factor)
-        except Exception:
-            pass
+        # Apply saved appearance settings
+        apply_theme(mode=get_app_setting("appearance_mode", "Light"))
 
-        if window is not None:
-            self.window = window
-            for widget in self.window.winfo_children():
-                widget.destroy()
-        else:
-            self.window = ctk.CTk()
+        self.setup_ui()
 
-        self.window.title(
-            "Login - Smart Academic Timetable Management System"
-        )
-        self.window.geometry("1000x720")
-        self.window.minsize(900, 650)
+    def setup_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        self.setCentralWidget(scroll)
 
-        self.create_login_screen()
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll_content.setMinimumWidth(800)
+        scroll.setWidget(scroll_content)
 
-    def create_login_screen(self):
-        # Main background container with dual light/dark gray palette
-        self.container = ctk.CTkFrame(
-            self.window,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
-        self.container.pack(fill="both", expand=True)
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(40, 30, 40, 20)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Main title
-        self.title_label = ctk.CTkLabel(
-            self.container,
-            text="Smart Academic Timetable Management System",
-            font=("Arial", 28, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        )
-        self.title_label.pack(pady=(35, 6))
+        self.title_label = QLabel("Smart Academic Timetable Management System")
+        self.title_label.setObjectName("Heading")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self.title_label)
 
         # Subtitle
-        self.subtitle_label = ctk.CTkLabel(
-            self.container,
-            text="College Academic Management Portal",
-            font=("Arial", 15),
-            text_color=("#71717A", "#A1A1AA")
-        )
-        self.subtitle_label.pack(pady=(0, 16))
+        self.subtitle_label = QLabel("College Academic Management Portal")
+        self.subtitle_label.setObjectName("Secondary")
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(self.subtitle_label)
 
-        # Center card container
-        self.card = ctk.CTkFrame(
-            self.container,
-            width=480,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=16,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-        self.card.pack(pady=5)
+        main_layout.addSpacing(10)
 
-        # Mode segment (Sign In vs Register Faculty)
-        self.mode_segment = ctk.CTkSegmentedButton(
-            self.card,
-            values=["Sign In", "Faculty Registration"],
-            command=self.on_mode_change,
-            font=("Arial", 13, "bold"),
-            height=36
-        )
-        self.mode_segment.set("Sign In")
-        self.mode_segment.pack(fill="x", padx=35, pady=(20, 15))
+        # Card container
+        self.card = QFrame()
+        self.card.setObjectName("Card")
+        self.card.setFixedWidth(500)
+        self.card_layout = QVBoxLayout(self.card)
+        self.card_layout.setContentsMargins(35, 25, 35, 30)
+        self.card_layout.setSpacing(14)
 
-        # Dynamic form container inside the card
-        self.form_frame = ctk.CTkFrame(self.card, fg_color="transparent")
-        self.form_frame.pack(fill="both", expand=True, padx=30, pady=(0, 20))
+        # Segmented buttons (Sign In / Faculty Registration)
+        mode_btn_layout = QHBoxLayout()
+        mode_btn_layout.setSpacing(8)
+
+        self.btn_mode_login = QPushButton("Sign In")
+        self.btn_mode_login.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_login.clicked.connect(self.show_login_form)
+
+        self.btn_mode_register = QPushButton("Faculty Registration")
+        self.btn_mode_register.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_mode_register.clicked.connect(self.show_register_form)
+
+        mode_btn_layout.addWidget(self.btn_mode_login)
+        mode_btn_layout.addWidget(self.btn_mode_register)
+        self.card_layout.addLayout(mode_btn_layout)
+
+        # Form content frame
+        self.form_container = QWidget()
+        self.form_layout = QVBoxLayout(self.form_container)
+        self.form_layout.setContentsMargins(0, 10, 0, 0)
+        self.form_layout.setSpacing(12)
+        self.card_layout.addWidget(self.form_container)
+
+        main_layout.addWidget(self.card, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Footer
-        self.footer = ctk.CTkLabel(
-            self.container,
-            text="Smart Academic Timetable Management System • Secured with Salted PBKDF2 Encryption",
-            font=("Arial", 11),
-            text_color=("#71717A", "#A1A1AA")
-        )
-        self.footer.pack(side="bottom", pady=14)
+        footer = QLabel("Smart Academic Timetable Management System • Secured with Salted PBKDF2 Encryption")
+        footer.setObjectName("Secondary")
+        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(footer)
 
-        # Render initial form
-        self.render_login_form()
+        # Initial view
+        self.show_login_form()
 
-    def on_mode_change(self, mode_value):
-        if mode_value == "Sign In":
-            self.render_login_form()
+    def update_mode_buttons(self):
+        if self.current_mode == "login":
+            self.btn_mode_login.setProperty("btnStyle", "primary")
+            self.btn_mode_register.setProperty("btnStyle", "secondary")
         else:
-            self.render_register_form()
+            self.btn_mode_login.setProperty("btnStyle", "secondary")
+            self.btn_mode_register.setProperty("btnStyle", "primary")
 
-    def render_login_form(self):
+        self.btn_mode_login.style().unpolish(self.btn_mode_login)
+        self.btn_mode_login.style().polish(self.btn_mode_login)
+        self.btn_mode_register.style().unpolish(self.btn_mode_register)
+        self.btn_mode_register.style().polish(self.btn_mode_register)
+
+    def clear_form(self):
+        while self.form_layout.count():
+            item = self.form_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+    def show_login_form(self):
         self.current_mode = "login"
-        for w in self.form_frame.winfo_children():
-            w.destroy()
+        self.update_mode_buttons()
+        self.clear_form()
 
         # Login heading
-        login_title = ctk.CTkLabel(
-            self.form_frame,
-            text="Sign In to Portal",
-            font=("Arial", 20, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        )
-        login_title.pack(pady=(5, 16))
+        title = QLabel("Sign In to Portal")
+        title.setObjectName("Subheading")
+        self.form_layout.addWidget(title)
 
         # Username
-        username_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Account Name (Username)",
-            font=("Arial", 13, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        username_label.pack(fill="x", pady=(0, 4))
+        lbl_user = QLabel("Account Name (Username)")
+        lbl_user.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_user)
 
-        self.username_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=38,
-            placeholder_text="e.g. admin or faculty_username",
-            font=("Arial", 13)
-        )
-        self.username_entry.pack(fill="x", pady=(0, 14))
+        self.username_entry = QLineEdit()
+        self.username_entry.setPlaceholderText("e.g. admin or faculty_username")
+        self.username_entry.returnPressed.connect(self.login)
+        self.form_layout.addWidget(self.username_entry)
 
         # Password
-        password_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Password",
-            font=("Arial", 13, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        password_label.pack(fill="x", pady=(0, 4))
+        lbl_pwd = QLabel("Password")
+        lbl_pwd.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_pwd)
 
-        self.password_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=38,
-            placeholder_text="Enter your password",
-            show="*",
-            font=("Arial", 13)
-        )
-        self.password_entry.pack(fill="x", pady=(0, 8))
+        self.password_entry = QLineEdit()
+        self.password_entry.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_entry.setPlaceholderText("Enter your password")
+        self.password_entry.returnPressed.connect(self.login)
+        self.form_layout.addWidget(self.password_entry)
 
         # Show password toggle
-        self.show_password_var = ctk.BooleanVar(value=False)
-        show_password_check = ctk.CTkCheckBox(
-            self.form_frame,
-            text="Show password",
-            variable=self.show_password_var,
-            command=self.toggle_login_password,
-            font=("Arial", 12),
-            text_color=("#27272A", "#E4E4E7")
+        self.show_pwd_check = QCheckBox("Show password")
+        self.show_pwd_check.toggled.connect(
+            lambda checked: self.password_entry.setEchoMode(
+                QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+            )
         )
-        show_password_check.pack(anchor="w", pady=(0, 16))
+        self.form_layout.addWidget(self.show_pwd_check)
 
-        # Login button
-        self.submit_button = ctk.CTkButton(
-            self.form_frame,
-            text="Sign In",
-            height=40,
-            font=("Arial", 14, "bold"),
-            command=self.login
-        )
-        self.submit_button.pack(fill="x", pady=(0, 12))
+        # Submit button
+        submit_btn = QPushButton("Sign In")
+        submit_btn.setMinimumHeight(38)
+        submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        submit_btn.clicked.connect(self.login)
+        self.form_layout.addWidget(submit_btn)
 
         # Switch link button
-        switch_btn = ctk.CTkButton(
-            self.form_frame,
-            text="New faculty member? Register here",
-            fg_color="transparent",
-            hover=False,
-            text_color=("#52525B", "#A1A1AA"),
-            font=("Arial", 12, "underline"),
-            command=lambda: [self.mode_segment.set("Faculty Registration"), self.render_register_form()]
-        )
-        switch_btn.pack()
+        switch_btn = QPushButton("New faculty member? Register here")
+        switch_btn.setProperty("btnStyle", "ghost")
+        switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        switch_btn.clicked.connect(self.show_register_form)
+        self.form_layout.addWidget(switch_btn)
 
-        # Bind Enter key
-        self.window.bind("<Return>", lambda event: self.login())
-        self.username_entry.focus()
+        self.username_entry.setFocus()
 
-    def render_register_form(self):
+    def show_register_form(self):
         self.current_mode = "register"
-        for w in self.form_frame.winfo_children():
-            w.destroy()
+        self.update_mode_buttons()
+        self.clear_form()
 
-        # Dynamically load live subjects from database
+        # Dynamic subjects from DB
         try:
             self.subjects_data = get_all_subjects() or []
         except Exception:
             self.subjects_data = []
 
-        # Register heading
-        reg_title = ctk.CTkLabel(
-            self.form_frame,
-            text="Register Faculty Account",
-            font=("Arial", 19, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        )
-        reg_title.pack(pady=(0, 12))
+        # Heading
+        title = QLabel("Register Faculty Account")
+        title.setObjectName("Subheading")
+        self.form_layout.addWidget(title)
 
-        # Username / Account Name
-        reg_user_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Username / Account ID",
-            font=("Arial", 12, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        reg_user_label.pack(fill="x", pady=(0, 2))
+        # Username / Account ID
+        lbl_user = QLabel("Username / Account ID")
+        lbl_user.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_user)
 
-        self.reg_username_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=36,
-            placeholder_text="e.g. john_doe (min 3 chars)",
-            font=("Arial", 12)
-        )
-        self.reg_username_entry.pack(fill="x", pady=(0, 8))
+        self.reg_username_entry = QLineEdit()
+        self.reg_username_entry.setPlaceholderText("e.g. john_doe (min 3 chars)")
+        self.form_layout.addWidget(self.reg_username_entry)
 
-        # Full Name / Display Name
-        reg_name_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Faculty Full Name",
-            font=("Arial", 12, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        reg_name_label.pack(fill="x", pady=(0, 2))
+        # Faculty Full Name
+        lbl_name = QLabel("Faculty Full Name")
+        lbl_name.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_name)
 
-        self.reg_fullname_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=36,
-            placeholder_text="e.g. Dr. John Doe",
-            font=("Arial", 12)
-        )
-        self.reg_fullname_entry.pack(fill="x", pady=(0, 8))
+        self.reg_fullname_entry = QLineEdit()
+        self.reg_fullname_entry.setPlaceholderText("e.g. Dr. John Doe")
+        self.form_layout.addWidget(self.reg_fullname_entry)
 
-        # Dynamic Subjects from DB
-        sub_options = []
+        # Primary Teaching Subject
+        lbl_sub = QLabel("Primary Teaching Subject")
+        lbl_sub.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_sub)
+
+        self.reg_subject_combo = QComboBox()
         if self.subjects_data:
             for s in self.subjects_data:
                 code = s[1] if len(s) > 1 else ""
                 sname = s[2] if len(s) > 2 else ""
                 dept = s[3] if len(s) > 3 else ""
-                sub_options.append(f"{code} - {sname} ({dept})")
+                self.reg_subject_combo.addItem(f"{code} - {sname} ({dept})", s)
         else:
-            sub_options = ["General (No subjects in database)"]
-
-        reg_sub_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Primary Teaching Subject",
-            font=("Arial", 12, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        reg_sub_label.pack(fill="x", pady=(0, 2))
-
-        self.reg_subject_combo = ctk.CTkComboBox(
-            self.form_frame,
-            values=sub_options,
-            height=36,
-            font=("Arial", 12)
-        )
-        self.reg_subject_combo.set(sub_options[0])
-        self.reg_subject_combo.pack(fill="x", pady=(0, 8))
+            self.reg_subject_combo.addItem("General (No subjects in database)")
+        self.form_layout.addWidget(self.reg_subject_combo)
 
         # Password
-        reg_pwd_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Password",
-            font=("Arial", 12, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        reg_pwd_label.pack(fill="x", pady=(0, 2))
+        lbl_pwd = QLabel("Password")
+        lbl_pwd.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_pwd)
 
-        self.reg_password_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=36,
-            placeholder_text="Password (min 4 chars)",
-            show="*",
-            font=("Arial", 12)
-        )
-        self.reg_password_entry.pack(fill="x", pady=(0, 8))
+        self.reg_password_entry = QLineEdit()
+        self.reg_password_entry.setEchoMode(QLineEdit.EchoMode.Password)
+        self.reg_password_entry.setPlaceholderText("Password (min 4 chars)")
+        self.form_layout.addWidget(self.reg_password_entry)
 
         # Confirm Password
-        reg_confirm_label = ctk.CTkLabel(
-            self.form_frame,
-            text="Confirm Password",
-            font=("Arial", 12, "bold"),
-            text_color=("#27272A", "#E4E4E7"),
-            anchor="w"
-        )
-        reg_confirm_label.pack(fill="x", pady=(0, 2))
+        lbl_cpwd = QLabel("Confirm Password")
+        lbl_cpwd.setObjectName("FormLabel")
+        self.form_layout.addWidget(lbl_cpwd)
 
-        self.reg_confirm_entry = ctk.CTkEntry(
-            self.form_frame,
-            height=36,
-            placeholder_text="Re-type password",
-            show="*",
-            font=("Arial", 12)
-        )
-        self.reg_confirm_entry.pack(fill="x", pady=(0, 6))
+        self.reg_confirm_entry = QLineEdit()
+        self.reg_confirm_entry.setEchoMode(QLineEdit.EchoMode.Password)
+        self.reg_confirm_entry.setPlaceholderText("Re-type password")
+        self.reg_confirm_entry.returnPressed.connect(self.register_user)
+        self.form_layout.addWidget(self.reg_confirm_entry)
 
-        # Show password toggle
-        self.reg_show_pwd_var = ctk.BooleanVar(value=False)
-        reg_show_pwd_check = ctk.CTkCheckBox(
-            self.form_frame,
-            text="Show passwords",
-            variable=self.reg_show_pwd_var,
-            command=self.toggle_reg_password,
-            font=("Arial", 11),
-            text_color=("#27272A", "#E4E4E7")
-        )
-        reg_show_pwd_check.pack(anchor="w", pady=(0, 10))
+        # Show passwords checkbox
+        self.reg_show_pwd_check = QCheckBox("Show passwords")
+        self.reg_show_pwd_check.toggled.connect(self.toggle_reg_passwords)
+        self.form_layout.addWidget(self.reg_show_pwd_check)
 
         # Register button
-        self.reg_submit_button = ctk.CTkButton(
-            self.form_frame,
-            text="Create Faculty Account & Sign In",
-            height=40,
-            font=("Arial", 13, "bold"),
-            fg_color="#10B981",
-            hover_color="#059669",
-            command=self.register_user
-        )
-        self.reg_submit_button.pack(fill="x", pady=(0, 10))
+        submit_btn = QPushButton("Create Faculty Account & Sign In")
+        submit_btn.setProperty("btnStyle", "success")
+        submit_btn.setMinimumHeight(38)
+        submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        submit_btn.clicked.connect(self.register_user)
+        self.form_layout.addWidget(submit_btn)
 
         # Switch link button
-        switch_btn = ctk.CTkButton(
-            self.form_frame,
-            text="Already have an account? Sign In",
-            fg_color="transparent",
-            hover=False,
-            text_color=("#52525B", "#A1A1AA"),
-            font=("Arial", 12, "underline"),
-            command=lambda: [self.mode_segment.set("Sign In"), self.render_login_form()]
-        )
-        switch_btn.pack()
+        switch_btn = QPushButton("Already have an account? Sign In")
+        switch_btn.setProperty("btnStyle", "ghost")
+        switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        switch_btn.clicked.connect(self.show_login_form)
+        self.form_layout.addWidget(switch_btn)
 
-        # Bind Enter key
-        self.window.bind("<Return>", lambda event: self.register_user())
-        self.reg_username_entry.focus()
+        self.reg_username_entry.setFocus()
 
-    def toggle_login_password(self):
-        show_char = "" if self.show_password_var.get() else "*"
-        self.password_entry.configure(show=show_char)
-
-    def toggle_reg_password(self):
-        show_char = "" if self.reg_show_pwd_var.get() else "*"
-        self.reg_password_entry.configure(show=show_char)
-        self.reg_confirm_entry.configure(show=show_char)
+    def toggle_reg_passwords(self, checked):
+        mode = QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+        self.reg_password_entry.setEchoMode(mode)
+        self.reg_confirm_entry.setEchoMode(mode)
 
     def login(self):
-        username = self.username_entry.get().strip()
-        password = self.password_entry.get()
+        username = self.username_entry.text().strip()
+        password = self.password_entry.text()
 
-        if username == "" or password == "":
-            messagebox.showwarning(
-                "Login",
-                "Please enter both username and password.",
-                parent=self.window
-            )
+        if not username or not password:
+            QMessageBox.warning(self, "Login", "Please enter both username and password.")
             return
 
         user = authenticate_user(username, password)
         if user:
             role = user.get("role", "Faculty")
-            messagebox.showinfo(
+            display_name = user.get("full_name") or user.get("username", "User")
+            QMessageBox.information(
+                self,
                 "Login Successful",
-                f"Welcome, {user.get('username', 'User')}!\n\n"
-                f"Logged in as {role}.",
-                parent=self.window
+                f"Welcome, {display_name}!\n\nLogged in as {role}."
             )
 
-            # Unbind enter key
-            self.window.unbind("<Return>")
-
-            # Open dashboard in the same window
             if self.on_login_success:
                 try:
-                    self.on_login_success(self.window, user)
+                    self.on_login_success(self, user)
                 except TypeError:
                     try:
-                        self.on_login_success(self.window)
+                        self.on_login_success(self)
                     except TypeError:
                         self.on_login_success()
         else:
-            messagebox.showerror(
+            QMessageBox.critical(
+                self,
                 "Login Failed",
-                "Invalid username or password.\n\nPlease check your credentials or register as a faculty member.",
-                parent=self.window
+                "Invalid username or password.\n\nPlease check your credentials or register as a faculty member."
             )
 
     def register_user(self):
-        username = self.reg_username_entry.get().strip()
-        fullname = self.reg_fullname_entry.get().strip()
-        selected_subject_str = self.reg_subject_combo.get().strip()
-        password = self.reg_password_entry.get()
-        confirm_pwd = self.reg_confirm_entry.get()
+        username = self.reg_username_entry.text().strip()
+        fullname = self.reg_fullname_entry.text().strip()
+        selected_subject_str = self.reg_subject_combo.currentText().strip()
+        password = self.reg_password_entry.text()
+        confirm_pwd = self.reg_confirm_entry.text()
 
         if not username:
-            messagebox.showwarning("Create Account", "Please enter an account name.", parent=self.window)
-            self.reg_username_entry.focus()
+            QMessageBox.warning(self, "Create Account", "Please enter an account name.")
+            self.reg_username_entry.setFocus()
             return
 
         if len(username) < 3:
-            messagebox.showwarning("Create Account", "Account name must be at least 3 characters.", parent=self.window)
-            self.reg_username_entry.focus()
+            QMessageBox.warning(self, "Create Account", "Account name must be at least 3 characters.")
+            self.reg_username_entry.setFocus()
             return
 
         if not password:
-            messagebox.showwarning("Create Account", "Please enter a password.", parent=self.window)
-            self.reg_password_entry.focus()
+            QMessageBox.warning(self, "Create Account", "Please enter a password.")
+            self.reg_password_entry.setFocus()
             return
 
         if len(password) < 4:
-            messagebox.showwarning("Create Account", "Password must be at least 4 characters long.", parent=self.window)
-            self.reg_password_entry.focus()
+            QMessageBox.warning(self, "Create Account", "Password must be at least 4 characters long.")
+            self.reg_password_entry.setFocus()
             return
 
         if password != confirm_pwd:
-            messagebox.showerror("Create Account", "Passwords do not match. Please re-enter.", parent=self.window)
-            self.reg_confirm_entry.focus()
+            QMessageBox.critical(self, "Create Account", "Passwords do not match. Please re-enter.")
+            self.reg_confirm_entry.setFocus()
             return
 
-        # Infer department automatically from selected subject
         department = "General"
         if self.subjects_data:
             for s in self.subjects_data:
@@ -457,7 +354,6 @@ class LoginWindow:
                     department = dept
                     break
 
-        # Register faculty account
         success, msg = add_user(
             username=username,
             password=password,
@@ -465,42 +361,37 @@ class LoginWindow:
             full_name=fullname if fullname else username,
             department=department
         )
+
         if not success:
-            messagebox.showerror("Registration Failed", msg, parent=self.window)
+            QMessageBox.critical(self, "Registration Failed", msg)
             return
 
-        messagebox.showinfo(
+        QMessageBox.information(
+            self,
             "Faculty Account Created",
-            f"Faculty account '{username}' registered successfully!\n\nLogging in to your Faculty Portal...",
-            parent=self.window
+            f"Faculty account '{username}' registered successfully!\n\nLogging in to your Faculty Portal..."
         )
 
         user = authenticate_user(username, password)
-        # Unbind enter key
-        self.window.unbind("<Return>")
-
-        # Open dashboard in the same window
         if self.on_login_success:
             try:
-                self.on_login_success(self.window, user)
+                self.on_login_success(self, user)
             except TypeError:
                 try:
-                    self.on_login_success(self.window)
+                    self.on_login_success(self)
                 except TypeError:
                     self.on_login_success()
 
     def run(self):
-        self.window.mainloop()
+        self.show()
 
 
 if __name__ == "__main__":
     from database.database import create_tables
-    from ui.dashboard import Dashboard
-
     create_tables()
 
-    def _on_success(win, user=None):
-        Dashboard(window=win, current_user=user)
-
-    login_app = LoginWindow(on_login_success=_on_success)
-    login_app.run()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    login_app = LoginWindow()
+    login_app.show()
+    sys.exit(app.exec())

@@ -1,13 +1,21 @@
-import re
-import customtkinter as ctk
-from tkinter import messagebox
+"""
+Faculty Workload Management Window & Embedded Widget in PySide6.
+"""
+
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QPushButton, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QFrame, QScrollArea, QAbstractItemView, QProgressBar
+)
 
 from database.database import (
     get_all_faculty,
     get_all_classes,
     get_all_subjects
 )
-
 from database.workload import (
     add_workload,
     get_all_workloads,
@@ -16,1820 +24,483 @@ from database.workload import (
 )
 
 
-class AssignmentsWindow:
-
-    def __init__(
-        self,
-        parent=None,
-        preselected_faculty_id=None,
-        container=None
-    ):
-
-        self.parent = parent
+class AssignmentsWindow(QWidget):
+    def __init__(self, parent=None, preselected_faculty_id=None, container=None):
+        super().__init__(container if container else parent)
+        self.parent_window = parent
         self.embedded = container is not None
-
-        self.preselected_faculty_id = (
-            preselected_faculty_id
-        )
-
+        self.preselected_faculty_id = preselected_faculty_id
         self.selected_workload_id = None
 
         self.faculty_records = []
         self.class_records = []
         self.subject_records = []
 
-        self.faculty_map = {}
-        self.class_map = {}
-        self.subject_map = {}
-
-        self.window = container if self.embedded else (
-            ctk.CTkToplevel(parent) if parent else ctk.CTk()
-        )
-
         if not self.embedded:
-            self.window.title("Faculty Workload Management")
-            self.window.geometry("1200x760")
-            self.window.minsize(1050, 680)
+            self.setWindowTitle("Faculty Workload Management - Smart Academic Timetable Management System")
+            self.resize(1200, 760)
+            self.setMinimumSize(1050, 680)
 
-        self.create_ui()
-
+        self.setup_ui()
         self.load_dropdowns()
-
         self.load_workloads()
 
-    # =====================================================
-    # CREATE UI
-    # =====================================================
+        if container:
+            container_layout = container.layout()
+            if container_layout:
+                container_layout.addWidget(self)
 
-    def create_ui(self):
+    def setup_ui(self):
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        main = ctk.CTkScrollableFrame(
-            self.window,
-            fg_color=("#F4F4F5", "#121212"),
-            corner_radius=0
-        )
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        root_layout.addWidget(scroll)
 
-        main.pack(
-            fill="both",
-            expand=True
-        )
+        scroll_content = QWidget()
+        scroll_content.setObjectName("ScrollContent")
+        scroll.setWidget(scroll_content)
 
-        # =================================================
+        main_layout = QVBoxLayout(scroll_content)
+        main_layout.setContentsMargins(30, 25, 30, 30)
+        main_layout.setSpacing(20)
+
+        # =====================================================
         # HEADER
-        # =================================================
+        # =====================================================
+        header_card = QFrame()
+        header_card.setObjectName("Card")
+        header_layout = QHBoxLayout(header_card)
+        header_layout.setContentsMargins(25, 18, 25, 18)
 
-        header = ctk.CTkFrame(
-            main,
-            height=80,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=0
-        )
+        title_box = QVBoxLayout()
+        title_box.setSpacing(4)
+        lbl_title = QLabel("Faculty Workload Management")
+        lbl_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        lbl_sub = QLabel("Assign multiple classes and subject teaching hours per faculty member")
+        lbl_sub.setProperty("secondary", True)
+        title_box.addWidget(lbl_title)
+        title_box.addWidget(lbl_sub)
+        header_layout.addLayout(title_box)
+        header_layout.addStretch()
 
-        header.pack(
-            fill="x"
-        )
+        main_layout.addWidget(header_card)
 
-        header.pack_propagate(False)
-
-        ctk.CTkLabel(
-            header,
-            text="Faculty Workload Management",
-            font=("Arial", 25, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            side="left",
-            padx=30
-        )
-
-        ctk.CTkLabel(
-            header,
-            text=(
-                "Add multiple classes and subjects "
-                "for each faculty"
-            ),
-            font=("Arial", 13),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            side="right",
-            padx=30
-        )
-
-        # =================================================
+        # =====================================================
         # FORM CARD
-        # =================================================
+        # =====================================================
+        form_card = QFrame()
+        form_card.setObjectName("Card")
+        form_layout = QVBoxLayout(form_card)
+        form_layout.setContentsMargins(25, 20, 25, 25)
+        form_layout.setSpacing(15)
 
-        form_card = ctk.CTkFrame(
-            main,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
+        form_title = QLabel("Workload Assignment Details")
+        form_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        form_layout.addWidget(form_title)
 
-        form_card.pack(
-            fill="x",
-            padx=25,
-            pady=20
-        )
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 1)
+        grid.setColumnStretch(3, 1)
 
-        for column in range(4):
+        # Row 0: Faculty, Class, Subject, Priority
+        lbl_fac = QLabel("Faculty Member *")
+        lbl_fac.setStyleSheet("font-weight: 600;")
+        self.faculty_combo = QComboBox()
+        self.faculty_combo.currentIndexChanged.connect(self.update_faculty_capacity_indicator)
+        grid.addWidget(lbl_fac, 0, 0)
+        grid.addWidget(self.faculty_combo, 1, 0)
 
-            form_card.grid_columnconfigure(
-                column,
-                weight=1
-            )
+        lbl_cls = QLabel("Academic Class *")
+        lbl_cls.setStyleSheet("font-weight: 600;")
+        self.class_combo = QComboBox()
+        grid.addWidget(lbl_cls, 0, 1)
+        grid.addWidget(self.class_combo, 1, 1)
 
-        # =================================================
-        # FACULTY
-        # =================================================
+        lbl_sub = QLabel("Subject *")
+        lbl_sub.setStyleSheet("font-weight: 600;")
+        self.subject_combo = QComboBox()
+        self.subject_combo.currentIndexChanged.connect(self.on_subject_change)
+        grid.addWidget(lbl_sub, 0, 2)
+        grid.addWidget(self.subject_combo, 1, 2)
 
-        ctk.CTkLabel(
-            form_card,
-            text="Faculty",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=0,
-            column=0,
-            sticky="w",
-            padx=15,
-            pady=(20, 5)
-        )
+        lbl_prio = QLabel("Priority / Type")
+        lbl_prio.setStyleSheet("font-weight: 600;")
+        self.priority_combo = QComboBox()
+        self.priority_combo.addItems(["Normal", "High Priority", "Low Priority", "Guest / Core"])
+        grid.addWidget(lbl_prio, 0, 3)
+        grid.addWidget(self.priority_combo, 1, 3)
 
-        self.faculty_menu = ctk.CTkOptionMenu(
-            form_card,
-            width=250,
-            height=38,
-            values=["Loading..."],
-            command=self.on_faculty_change
-        )
+        # Row 1: Periods/Week + Workload status bar
+        lbl_periods = QLabel("Periods / Week *")
+        lbl_periods.setStyleSheet("font-weight: 600;")
+        self.periods_entry = QLineEdit("4")
+        self.periods_entry.setPlaceholderText("4")
+        grid.addWidget(lbl_periods, 2, 0)
+        grid.addWidget(self.periods_entry, 3, 0)
 
-        self.faculty_menu.grid(
-            row=1,
-            column=0,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
+        # Workload status gauge
+        load_box = QVBoxLayout()
+        load_box.setSpacing(4)
+        self.lbl_workload_status = QLabel("Faculty Load: 0 / 18 hrs")
+        self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #2563EB;")
+        self.workload_progress = QProgressBar()
+        self.workload_progress.setRange(0, 24)
+        self.workload_progress.setValue(0)
+        self.workload_progress.setFixedHeight(16)
+        load_box.addWidget(self.lbl_workload_status)
+        load_box.addWidget(self.workload_progress)
+        grid.addLayout(load_box, 3, 1, 1, 3)
 
-        # =================================================
-        # CLASS / YEAR
-        # =================================================
+        form_layout.addLayout(grid)
 
-        ctk.CTkLabel(
-            form_card,
-            text="Class / Year",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=0,
-            column=1,
-            sticky="w",
-            padx=15,
-            pady=(20, 5)
-        )
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
 
-        self.class_menu = ctk.CTkOptionMenu(
-            form_card,
-            width=300,
-            height=38,
-            values=["Loading..."],
-            command=self.on_class_change
-        )
+        self.btn_add = QPushButton("Assign Workload")
+        self.btn_add.setProperty("btnStyle", "success")
+        self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_add.clicked.connect(self.add_workload_record)
+        btn_layout.addWidget(self.btn_add)
 
-        self.class_menu.grid(
-            row=1,
-            column=1,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
+        self.btn_update = QPushButton("Update Selected")
+        self.btn_update.setProperty("btnStyle", "secondary")
+        self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_update.clicked.connect(self.update_workload_record)
+        btn_layout.addWidget(self.btn_update)
 
-        # =================================================
-        # SUBJECT
-        # =================================================
+        self.btn_delete = QPushButton("Delete Selected")
+        self.btn_delete.setProperty("btnStyle", "danger")
+        self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_delete.clicked.connect(self.delete_workload_record)
+        btn_layout.addWidget(self.btn_delete)
 
-        ctk.CTkLabel(
-            form_card,
-            text="Subject",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=0,
-            column=2,
-            sticky="w",
-            padx=15,
-            pady=(20, 5)
-        )
+        self.btn_clear = QPushButton("Clear Form")
+        self.btn_clear.setProperty("btnStyle", "ghost")
+        self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear.clicked.connect(self.clear_form)
+        btn_layout.addWidget(self.btn_clear)
 
-        self.subject_menu = ctk.CTkOptionMenu(
-            form_card,
-            width=250,
-            height=38,
-            values=["Select Class First"]
-        )
+        btn_layout.addStretch()
+        form_layout.addLayout(btn_layout)
 
-        self.subject_menu.grid(
-            row=1,
-            column=2,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
+        main_layout.addWidget(form_card)
 
-        # =================================================
-        # PRIORITY
-        # =================================================
+        # =====================================================
+        # TABLE CARD
+        # =====================================================
+        table_card = QFrame()
+        table_card.setObjectName("Card")
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(25, 20, 25, 25)
+        table_layout.setSpacing(15)
 
-        ctk.CTkLabel(
-            form_card,
-            text="Priority",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=2,
-            column=0,
-            sticky="w",
-            padx=15,
-            pady=(0, 5)
-        )
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(10)
 
-        self.priority_menu = ctk.CTkOptionMenu(
-            form_card,
-            width=250,
-            height=38,
-            values=[
-                "Normal",
-                "Important"
-            ]
-        )
+        lbl_tbl = QLabel("Allocated Faculty Workloads")
+        lbl_tbl.setStyleSheet("font-size: 16px; font-weight: bold;")
+        filter_layout.addWidget(lbl_tbl)
+        filter_layout.addStretch()
 
-        self.priority_menu.set(
-            "Normal"
-        )
+        filter_layout.addWidget(QLabel("Filter by Faculty:"))
+        self.filter_faculty_combo = QComboBox()
+        self.filter_faculty_combo.setMinimumWidth(220)
+        self.filter_faculty_combo.currentIndexChanged.connect(self.filter_table_by_faculty)
+        filter_layout.addWidget(self.filter_faculty_combo)
 
-        self.priority_menu.grid(
-            row=3,
-            column=0,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
+        btn_show_all = QPushButton("Show All")
+        btn_show_all.setProperty("btnStyle", "secondary")
+        btn_show_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_show_all.clicked.connect(lambda: self.filter_faculty_combo.setCurrentIndex(0))
+        filter_layout.addWidget(btn_show_all)
 
-        # =================================================
-        # PERIODS PER WEEK
-        # =================================================
+        table_layout.addLayout(filter_layout)
 
-        ctk.CTkLabel(
-            form_card,
-            text="Periods / Week",
-            font=("Arial", 13, "bold"),
-            text_color=("#374151", "#E2E8F0")
-        ).grid(
-            row=2,
-            column=1,
-            sticky="w",
-            padx=15,
-            pady=(0, 5)
-        )
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels([
+            "ID", "Faculty Name", "Class Name", "Semester", "Subject Code", "Subject Name", "Priority", "Hrs / Wk"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setMinimumHeight(300)
+        self.table.itemSelectionChanged.connect(self.on_table_select)
 
-        period_values = [
-            str(number)
-            for number in range(1, 21)
-        ]
-
-        self.periods_menu = ctk.CTkOptionMenu(
-            form_card,
-            width=300,
-            height=38,
-            values=period_values
-        )
-
-        self.periods_menu.set(
-            "5"
-        )
-
-        self.periods_menu.grid(
-            row=3,
-            column=1,
-            padx=15,
-            pady=(0, 20),
-            sticky="ew"
-        )
-
-        # =================================================
-        # BUTTONS
-        # =================================================
-
-        button_frame = ctk.CTkFrame(
-            form_card,
-            fg_color="transparent"
-        )
-
-        button_frame.grid(
-            row=3,
-            column=2,
-            columnspan=2,
-            padx=15,
-            pady=(0, 20),
-            sticky="w"
-        )
-
-        # -------------------------------------------------
-        # ADD WORKLOAD
-        # -------------------------------------------------
-
-        self.add_button = ctk.CTkButton(
-            button_frame,
-            text="＋ Add Workload",
-            width=150,
-            height=38,
-            command=self.add_workload_record
-        )
-
-        self.add_button.pack(
-            side="left",
-            padx=4
-        )
-
-        # -------------------------------------------------
-        # UPDATE
-        # -------------------------------------------------
-
-        self.update_button = ctk.CTkButton(
-            button_frame,
-            text="Update",
-            width=90,
-            height=38,
-            command=self.update_workload_record
-        )
-
-        self.update_button.pack(
-            side="left",
-            padx=4
-        )
-
-        # -------------------------------------------------
-        # CLEAR
-        # -------------------------------------------------
-
-        self.clear_button = ctk.CTkButton(
-            button_frame,
-            text="Clear",
-            width=85,
-            height=38,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self.clear_form
-        )
-
-        self.clear_button.pack(
-            side="left",
-            padx=4
-        )
-
-        # =================================================
-        # INFORMATION TEXT
-        # =================================================
-
-        ctk.CTkLabel(
-            main,
-            text=(
-                "A faculty member can have multiple classes "
-                "and multiple subjects. Each workload stores "
-                "priority and required periods per week."
-            ),
-            font=("Arial", 12),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            anchor="w",
-            padx=30,
-            pady=(0, 12)
-        )
-
-        # =================================================
-        # WORKLOAD LIST CARD
-        # =================================================
-
-        list_card = ctk.CTkFrame(
-            main,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("#E4E4E7", "#383838")
-        )
-
-        list_card.pack(
-            fill="x",
-            padx=25,
-            pady=(0, 25)
-        )
-
-        # =================================================
-        # LIST TITLE
-        # =================================================
-
-        ctk.CTkLabel(
-            list_card,
-            text="Assigned Faculty Workloads",
-            font=("Arial", 18, "bold"),
-            text_color=("#18181B", "#F4F4F5")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(15, 5)
-        )
-
-        ctk.CTkLabel(
-            list_card,
-            text=(
-                "View and manage faculty, class, "
-                "subject, priority and weekly periods."
-            ),
-            font=("Arial", 12),
-            text_color=("#71717A", "#A1A1AA")
-        ).pack(
-            anchor="w",
-            padx=20,
-            pady=(0, 12)
-        )
-
-        # =================================================
-        # TABLE
-        # =================================================
-
-        self.list_frame = ctk.CTkFrame(
-            list_card,
-            fg_color=("#FFFFFF", "#1E1E1E"),
-            corner_radius=8
-        )
-
-        self.list_frame.pack(
-            fill="both",
-            expand=True,
-            padx=15,
-            pady=(0, 15)
-        )
-
-    # =====================================================
-    # LOAD DROPDOWNS
-    # =====================================================
+        table_layout.addWidget(self.table)
+        main_layout.addWidget(table_card)
+        main_layout.addStretch()
 
     def load_dropdowns(self):
+        self.faculty_records = get_all_faculty() or []
+        self.faculty_combo.clear()
+        self.filter_faculty_combo.clear()
+        self.filter_faculty_combo.addItem("All Faculty Members", None)
 
-        # -------------------------------------------------
-        # FACULTY
-        # -------------------------------------------------
+        selected_idx = 0
+        for idx, f in enumerate(self.faculty_records):
+            fid = f[0]
+            fname = f[2]
+            dept = f[3] if len(f) > 3 else ""
+            max_hrs = f[7] if len(f) > 7 else 18
+            display = f"{fname} ({dept})"
+            self.faculty_combo.addItem(display, (fid, max_hrs))
+            self.filter_faculty_combo.addItem(display, fid)
+            if self.preselected_faculty_id and fid == self.preselected_faculty_id:
+                selected_idx = idx
 
-        self.faculty_records = get_all_faculty()
+        if self.faculty_records:
+            self.faculty_combo.setCurrentIndex(selected_idx)
 
-        self.faculty_map = {}
+        self.class_records = get_all_classes() or []
+        self.class_combo.clear()
+        for c in self.class_records:
+            cid = c[0]
+            cname = c[1]
+            sem = c[3] if len(c) > 3 else ""
+            self.class_combo.addItem(f"{cname} (Sem {sem})", cid)
 
-        faculty_values = []
+        self.subject_records = get_all_subjects() or []
+        self.subject_combo.clear()
+        for s in self.subject_records:
+            sid = s[0]
+            code = s[1]
+            sname = s[2]
+            hrs = s[6] if len(s) > 6 else 4
+            self.subject_combo.addItem(f"{code} - {sname}", (sid, hrs))
 
-        for record in self.faculty_records:
+    def on_subject_change(self):
+        data = self.subject_combo.currentData()
+        if data and len(data) > 1:
+            self.periods_entry.setText(str(data[1] or 4))
 
-            record_id = record[0]
-            faculty_id = record[1]
-            faculty_name = record[2]
+    def update_faculty_capacity_indicator(self):
+        data = self.faculty_combo.currentData()
+        if not data:
+            return
+        fid, max_hrs = data if isinstance(data, tuple) else (data, 18)
 
-            if faculty_id:
+        all_wl = get_all_workloads() or []
+        current_hrs = 0
+        for w in all_wl:
+            if len(w) > 1 and w[1] == fid:
+                current_hrs += int(w[13] if len(w) > 13 else 0)
 
-                display = (
-                    f"{faculty_name} "
-                    f"[ID: {faculty_id}]"
-                )
+        self.workload_progress.setMaximum(max(24, max_hrs))
+        self.workload_progress.setValue(current_hrs)
 
-            else:
+        if current_hrs > max_hrs:
+            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Overloaded)"
+            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #EF4444;")
+        elif current_hrs == max_hrs:
+            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Full Capacity)"
+            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #10B981;")
+        else:
+            status_text = f"Faculty Load: {current_hrs} / {max_hrs} hrs (Available: {max_hrs - current_hrs} hrs)"
+            self.lbl_workload_status.setStyleSheet("font-weight: 600; color: #2563EB;")
 
-                display = faculty_name
+        self.lbl_workload_status.setText(status_text)
 
-            self.faculty_map[display] = record_id
+    def load_workloads(self, records=None):
+        if records is None:
+            records = get_all_workloads() or []
 
-            faculty_values.append(
-                display
-            )
+        self.records_data = records
+        self.table.setRowCount(0)
 
-        if not faculty_values:
+        for row_idx, rec in enumerate(records):
+            self.table.insertRow(row_idx)
+            wid = rec[0] if len(rec) > 0 else ""
+            fname = rec[3] if len(rec) > 3 else ""
+            cname = rec[5] if len(rec) > 5 else ""
+            sem = f"Sem {rec[7]}" if len(rec) > 7 and rec[7] else "—"
+            scode = rec[10] if len(rec) > 10 else ""
+            sname = rec[11] if len(rec) > 11 else ""
+            prio = rec[12] if len(rec) > 12 else "Normal"
+            hrs = rec[13] if len(rec) > 13 else ""
 
-            faculty_values = [
-                "No Faculty Available"
-            ]
+            row_items = [str(wid), str(fname), str(cname), str(sem), str(scode), str(sname), str(prio), str(hrs)]
+            for col_idx, text in enumerate(row_items):
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if col_idx in [0, 3, 4, 6, 7] else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                self.table.setItem(row_idx, col_idx, item)
 
-        self.faculty_menu.configure(
-            values=faculty_values
-        )
+        self.update_faculty_capacity_indicator()
 
-        # -------------------------------------------------
-        # PRESELECT FACULTY
-        # -------------------------------------------------
+    def filter_table_by_faculty(self):
+        selected_fid = self.filter_faculty_combo.currentData()
+        all_wl = get_all_workloads() or []
+        if selected_fid is None:
+            self.load_workloads(all_wl)
+        else:
+            filtered = [w for w in all_wl if len(w) > 1 and w[1] == selected_fid]
+            self.load_workloads(filtered)
 
-        selected_faculty_display = None
+    def on_table_select(self):
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            return
 
-        if self.preselected_faculty_id is not None:
+        row = selected_items[0].row()
+        if row < len(self.records_data):
+            rec = self.records_data[row]
+            self.selected_workload_id = rec[0]
+            fid = rec[1]
+            cid = rec[4]
+            sid = rec[9]
+            prio = rec[12] if len(rec) > 12 else "Normal"
+            hrs = rec[13] if len(rec) > 13 else 4
 
-            for record in self.faculty_records:
-
-                if record[0] == self.preselected_faculty_id:
-
-                    faculty_id = record[1]
-                    faculty_name = record[2]
-
-                    if faculty_id:
-
-                        selected_faculty_display = (
-                            f"{faculty_name} "
-                            f"[ID: {faculty_id}]"
-                        )
-
-                    else:
-
-                        selected_faculty_display = (
-                            faculty_name
-                        )
-
+            for i in range(self.faculty_combo.count()):
+                d = self.faculty_combo.itemData(i)
+                if d and (d[0] == fid if isinstance(d, tuple) else d == fid):
+                    self.faculty_combo.setCurrentIndex(i)
                     break
 
-        if selected_faculty_display:
-
-            self.faculty_menu.set(
-                selected_faculty_display
-            )
-
-        elif faculty_values:
-
-            self.faculty_menu.set(
-                faculty_values[0]
-            )
-
-        # -------------------------------------------------
-        # CLASS
-        # -------------------------------------------------
-
-        self.class_records = get_all_classes()
-
-        self.class_map = {}
-
-        class_values = []
-
-        for record in self.class_records:
-
-            record_id = record[0]
-            class_name = record[1]
-            department = record[2]
-            semester = record[3]
-            academic_year = record[4]
-
-            semester_display = (
-                self.format_semester(
-                    semester
-                )
-            )
-
-            # ---------------------------------------------
-            # IMPORTANT:
-            # Department is NOT shown separately.
-            #
-            # Example:
-            # 1st BCA | Semester 1 | 2024-2025
-            # ---------------------------------------------
-
-            display = (
-                f"{class_name} | "
-                f"{semester_display} | "
-                f"{academic_year}"
-            )
-
-            self.class_map[display] = record_id
-
-            class_values.append(
-                display
-            )
-
-        if not class_values:
-
-            class_values = [
-                "No Class Available"
-            ]
-
-        self.class_menu.configure(
-            values=class_values
-        )
-
-        if class_values:
-
-            self.class_menu.set(
-                class_values[0]
-            )
-
-            self.on_class_change(
-                class_values[0]
-            )
-
-    # =====================================================
-    # FORMAT SEMESTER
-    # =====================================================
-
-    def format_semester(self, semester):
-
-        value = str(
-            semester
-        ).strip()
-
-        semester_map = {
-            "1": "Semester 1",
-            "2": "Semester 2",
-            "3": "Semester 3",
-            "4": "Semester 4",
-            "5": "Semester 5",
-            "6": "Semester 6",
-
-            "I Semester": "Semester 1",
-            "II Semester": "Semester 2",
-            "III Semester": "Semester 3",
-            "IV Semester": "Semester 4",
-            "V Semester": "Semester 5",
-            "VI Semester": "Semester 6"
-        }
-
-        return semester_map.get(
-            value,
-            value
-        )
-
-    # =====================================================
-    # FACULTY CHANGE
-    # =====================================================
-
-    def on_faculty_change(self, selected_value):
-
-        # Faculty change does not remove subjects.
-        # Subject availability depends on class.
-
-        if (
-            selected_value
-            == "No Faculty Available"
-        ):
-
-            return
-
-    # =====================================================
-    # CLASS CHANGE
-    # =====================================================
-
-    def on_class_change(self, selected_value):
-
-        class_id = self.class_map.get(
-            selected_value
-        )
-
-        if class_id is None:
-
-            self.subject_map = {}
-
-            self.subject_menu.configure(
-                values=["No Matching Subject"]
-            )
-
-            self.subject_menu.set(
-                "No Matching Subject"
-            )
-
-            return
-
-        # -------------------------------------------------
-        # Get selected class details
-        # -------------------------------------------------
-
-        selected_class = None
-
-        for record in self.class_records:
-
-            if record[0] == class_id:
-
-                selected_class = record
-
-                break
-
-        if selected_class is None:
-
-            return
-
-        class_department = str(
-            selected_class[2]
-        ).strip()
-
-        class_semester = str(
-            selected_class[3]
-        ).strip()
-
-        # -------------------------------------------------
-        # Load ALL subjects
-        #
-        # We intentionally do NOT require
-        # subject_faculty assignment here.
-        #
-        # New workload system itself stores:
-        # Faculty + Class + Subject + Priority + Periods
-        # -------------------------------------------------
-
-        all_subjects = get_all_subjects()
-
-        self.subject_records = []
-        self.subject_map = {}
-
-        subject_values = []
-
-        for subject in all_subjects:
-
-            subject_id = subject[0]
-            subject_code = subject[1]
-            subject_name = subject[2]
-
-            subject_department = str(
-                subject[3]
-            ).strip()
-
-            subject_semester = str(
-                subject[4]
-            ).strip()
-
-            # ---------------------------------------------
-            # Department must match class department
-            # ---------------------------------------------
-
-            department_match = (
-                subject_department.lower()
-                ==
-                class_department.lower()
-            )
-
-            # ---------------------------------------------
-            # Semester must match class semester
-            # ---------------------------------------------
-
-            semester_match = (
-                subject_semester.lower()
-                ==
-                class_semester.lower()
-            )
-
-            # Backward compatibility:
-            # 1 == I Semester, etc.
-
-            if not semester_match:
-
-                semester_pairs = {
-                    ("1", "I Semester"),
-                    ("I Semester", "1"),
-
-                    ("2", "II Semester"),
-                    ("II Semester", "2"),
-
-                    ("3", "III Semester"),
-                    ("III Semester", "3"),
-
-                    ("4", "IV Semester"),
-                    ("IV Semester", "4"),
-
-                    ("5", "V Semester"),
-                    ("V Semester", "5"),
-
-                    ("6", "VI Semester"),
-                    ("VI Semester", "6")
-                }
-
-                semester_match = (
-                    (
-                        subject_semester,
-                        class_semester
-                    )
-                    in semester_pairs
-                )
-
-            if (
-                department_match
-                and semester_match
-            ):
-
-                self.subject_records.append(
-                    subject
-                )
-
-                display = (
-                    f"{subject_code} - "
-                    f"{subject_name}"
-                )
-
-                self.subject_map[display] = (
-                    subject_id
-                )
-
-                subject_values.append(
-                    display
-                )
-
-        # -------------------------------------------------
-        # SUBJECT DROPDOWN
-        # -------------------------------------------------
-
-        if not subject_values:
-
-            self.subject_menu.configure(
-                values=[
-                    "No Matching Subject"
-                ]
-            )
-
-            self.subject_menu.set(
-                "No Matching Subject"
-            )
-
-            return
-
-        self.subject_menu.configure(
-            values=subject_values
-        )
-
-        self.subject_menu.set(
-            subject_values[0]
-        )
-
-    # =====================================================
-    # GET SELECTED FACULTY ID
-    # =====================================================
-
-    def get_selected_faculty_id(self):
-
-        selected = self.faculty_menu.get()
-
-        return self.faculty_map.get(
-            selected
-        )
-
-    # =====================================================
-    # GET SELECTED CLASS ID
-    # =====================================================
-
-    def get_selected_class_id(self):
-
-        selected = self.class_menu.get()
-
-        return self.class_map.get(
-            selected
-        )
-
-    # =====================================================
-    # GET SELECTED SUBJECT ID
-    # =====================================================
-
-    def get_selected_subject_id(self):
-
-        selected = self.subject_menu.get()
-
-        return self.subject_map.get(
-            selected
-        )
-
-    # =====================================================
-    # VALIDATE
-    # =====================================================
-
-    def validate_form(self):
-
-        faculty_id = (
-            self.get_selected_faculty_id()
-        )
-
-        class_id = (
-            self.get_selected_class_id()
-        )
-
-        subject_id = (
-            self.get_selected_subject_id()
-        )
-
-        priority = (
-            self.priority_menu
-            .get()
-            .strip()
-        )
-
-        periods_text = (
-            self.periods_menu
-            .get()
-            .strip()
-        )
-
-        # =================================================
-        # FACULTY
-        # =================================================
-
-        if faculty_id is None:
-
-            messagebox.showwarning(
-                "Missing Faculty",
-                "Please select a faculty member.",
-                parent=self.window
-            )
-
-            return None
-
-        # =================================================
-        # CLASS
-        # =================================================
-
-        if class_id is None:
-
-            messagebox.showwarning(
-                "Missing Class",
-                "Please select a class.",
-                parent=self.window
-            )
-
-            return None
-
-        # =================================================
-        # SUBJECT
-        # =================================================
-
-        if subject_id is None:
-
-            messagebox.showwarning(
-                "Missing Subject",
-                (
-                    "No valid subject is selected "
-                    "for this class."
-                ),
-                parent=self.window
-            )
-
-            return None
-
-        # =================================================
-        # PERIODS
-        # =================================================
-
-        if not periods_text.isdigit():
-
-            messagebox.showwarning(
-                "Invalid Periods",
-                "Periods per Week must be a number.",
-                parent=self.window
-            )
-
-            return None
-
-        periods = int(
-            periods_text
-        )
-
-        if periods < 1 or periods > 20:
-
-            messagebox.showwarning(
-                "Invalid Periods",
-                (
-                    "Periods per Week must be "
-                    "between 1 and 20."
-                ),
-                parent=self.window
-            )
-
-            return None
-
-        # =================================================
-        # PRIORITY
-        # =================================================
-
-        if priority not in (
-            "Normal",
-            "Important"
-        ):
-
-            priority = "Normal"
-
-        return (
-            faculty_id,
-            class_id,
-            subject_id,
-            priority,
-            periods
-        )
-
-    # =====================================================
-    # ADD WORKLOAD
-    # =====================================================
+            for i in range(self.class_combo.count()):
+                if self.class_combo.itemData(i) == cid:
+                    self.class_combo.setCurrentIndex(i)
+                    break
+
+            for i in range(self.subject_combo.count()):
+                d = self.subject_combo.itemData(i)
+                if d and (d[0] == sid if isinstance(d, tuple) else d == sid):
+                    self.subject_combo.setCurrentIndex(i)
+                    break
+
+            self.priority_combo.setCurrentText(str(prio))
+            self.periods_entry.setText(str(hrs))
+
+    def clear_form(self):
+        self.selected_workload_id = None
+        self.periods_entry.setText("4")
+        self.priority_combo.setCurrentIndex(0)
+        self.table.clearSelection()
+        self.update_faculty_capacity_indicator()
 
     def add_workload_record(self):
+        fac_data = self.faculty_combo.currentData()
+        if not fac_data:
+            QMessageBox.warning(self, "Validation Error", "Please select a faculty member.")
+            return
+        faculty_id = fac_data[0] if isinstance(fac_data, tuple) else fac_data
 
-        data = self.validate_form()
-
-        if data is None:
-
+        class_id = self.class_combo.currentData()
+        if not class_id:
+            QMessageBox.warning(self, "Validation Error", "Please select an academic class.")
             return
 
-        (
-            faculty_id,
-            class_id,
-            subject_id,
-            priority,
-            periods
-        ) = data
+        sub_data = self.subject_combo.currentData()
+        if not sub_data:
+            QMessageBox.warning(self, "Validation Error", "Please select a subject.")
+            return
+        subject_id = sub_data[0] if isinstance(sub_data, tuple) else sub_data
+
+        try:
+            hrs = int(self.periods_entry.text().strip())
+            if hrs < 1 or hrs > 30:
+                raise ValueError()
+        except ValueError:
+            QMessageBox.warning(self, "Validation Error", "Periods/Week must be an integer between 1 and 30.")
+            return
+
+        prio = self.priority_combo.currentText()
 
         workload_id = add_workload(
-            faculty_id,
-            class_id,
-            subject_id,
-            priority,
-            periods
+            faculty_id=faculty_id,
+            class_id=class_id,
+            subject_id=subject_id,
+            priority=prio,
+            periods_per_week=hrs
         )
 
-        if workload_id:
-
-            messagebox.showinfo(
-                "Success",
-                "Faculty workload added successfully.",
-                parent=self.window
-            )
-
-            self.clear_form(
-                keep_faculty=True
-            )
-
+        if workload_id is not None:
+            QMessageBox.information(self, "Success", "Faculty workload assigned successfully!")
+            self.clear_form()
             self.load_workloads()
-
         else:
-
-            messagebox.showerror(
-                "Duplicate Workload",
-                (
-                    "This faculty member is already "
-                    "assigned to this subject for this class."
-                ),
-                parent=self.window
-            )
-
-    # =====================================================
-    # LOAD WORKLOADS
-    # =====================================================
-
-    def load_workloads(self):
-
-        records = get_all_workloads()
-
-        self.display_workloads(
-            records
-        )
-
-    # =====================================================
-    # CLASS + SUBJECT SORT KEY
-    # =====================================================
-
-    def get_class_sort_key(self, record):
-        """
-        Sort workload assignments using:
-
-        1. Course
-        2. Year
-        3. Subject number
-        4. Faculty name
-
-        Example:
-
-            1st BCA
-                BCA01
-                BCA02
-                BCA03
-                BCA04
-                BCA05
-                BCA06
-
-            1st BCOM
-                BCOM01
-                BCOM02
-                BCOM03
-                BCOM04
-                BCOM06
-
-        Faculty name is NOT used as the primary ordering.
-        """
-
-        # -------------------------------------------------
-        # CLASS DETAILS
-        # -------------------------------------------------
-
-        class_name = str(
-            record[5]
-        ).strip()
-
-        department = str(
-            record[6]
-        ).strip()
-
-        normalized_class = re.sub(
-            r"[^A-Z0-9]+",
-            "",
-            class_name.upper()
-        )
-
-        normalized_department = re.sub(
-            r"[^A-Z0-9]+",
-            "",
-            department.upper()
-        )
-
-        # -------------------------------------------------
-        # COURSE ORDER
-        # -------------------------------------------------
-
-        course_order = {
-            "BCA": 1,
-            "BSC": 2,
-            "BCOM": 3
-        }
-
-        course_rank = 99
-
-        for course, rank in course_order.items():
-
-            if course in normalized_class:
-
-                course_rank = rank
-                break
-
-        # If course is not present in class name,
-        # check department.
-
-        if course_rank == 99:
-
-            for course, rank in course_order.items():
-
-                if course in normalized_department:
-
-                    course_rank = rank
-                    break
-
-        # -------------------------------------------------
-        # YEAR / CLASS NUMBER
-        # -------------------------------------------------
-
-        year_rank = 99
-
-        year_patterns = [
-            (1, r"\b(?:1ST|FIRST|1|I)\b"),
-            (2, r"\b(?:2ND|SECOND|2|II)\b"),
-            (3, r"\b(?:3RD|THIRD|3|III)\b"),
-            (4, r"\b(?:4TH|FOURTH|4|IV)\b"),
-            (5, r"\b(?:5TH|FIFTH|5|V)\b"),
-            (6, r"\b(?:6TH|SIXTH|6|VI)\b")
-        ]
-
-        class_upper = class_name.upper()
-
-        for year, pattern in year_patterns:
-
-            if re.search(
-                pattern,
-                class_upper
-            ):
-
-                year_rank = year
-                break
-
-        # -------------------------------------------------
-        # SUBJECT CODE
-        # -------------------------------------------------
-
-        subject_code = str(
-            record[10]
-        ).strip().upper()
-
-        # Extract numeric part from:
-        #
-        # BCA01
-        # BCA02
-        # BCOM01
-        # BCOM06
-        #
-        # Result:
-        # BCA01  -> 1
-        # BCA02  -> 2
-        # BCOM06 -> 6
-
-        number_match = re.search(
-            r"(\d+)",
-            subject_code
-        )
-
-        if number_match:
-
-            subject_number = int(
-                number_match.group(1)
-            )
-
-        else:
-
-            subject_number = 999
-
-        # -------------------------------------------------
-        # FACULTY
-        #
-        # Only used as final tie-breaker.
-        # -------------------------------------------------
-
-        faculty_name = str(
-            record[3]
-        ).strip().lower()
-
-        return (
-            course_rank,
-            year_rank,
-            subject_number,
-            subject_code,
-            faculty_name,
-            record[0]
-        )
-
-    # =====================================================
-    # DISPLAY WORKLOADS
-    # =====================================================
-
-    def display_workloads(self, records):
-
-        for widget in self.list_frame.winfo_children():
-
-            widget.destroy()
-
-        # =================================================
-        # TABLE HEADERS
-        # =================================================
-
-        headers = [
-            "Faculty",
-            "Class",
-            "Subject",
-            "Priority",
-            "Periods / Week",
-            "Action"
-        ]
-
-        widths = [
-            170,
-            270,
-            220,
-            120,
-            130,
-            190
-        ]
-
-        # =================================================
-        # HEADER ROW
-        # =================================================
-
-        for column, (
-            header,
-            width
-        ) in enumerate(
-            zip(headers, widths)
-        ):
-
-            ctk.CTkLabel(
-                self.list_frame,
-                text=header,
-                width=width,
-                height=40,
-                font=("Arial", 12, "bold"),
-                text_color=("#18181B", "#F4F4F5"),
-                fg_color=("#E4E4E7", "#27272A"),
-                corner_radius=5,
-                anchor="center"
-            ).grid(
-                row=0,
-                column=column,
-                padx=3,
-                pady=4,
-                sticky="ew"
-            )
-
-        # =================================================
-        # NO DATA
-        # =================================================
-
-        if not records:
-
-            ctk.CTkLabel(
-                self.list_frame,
-                text="No faculty workloads assigned.",
-                font=("Arial", 14),
-                text_color=("#9CA3AF", "#64748B")
-            ).grid(
-                row=1,
-                column=0,
-                columnspan=6,
-                pady=50
-            )
-
-            return
-
-        # =================================================
-        # SORT DATA BY CLASS
-        #
-        # Class is the primary ordering.
-        # Faculty name is NOT the primary ordering.
-        # =================================================
-
-        records = sorted(
-            records,
-            key=self.get_class_sort_key
-        )
-
-        # =================================================
-        # DATA ROWS
-        # =================================================
-
-        for row_number, record in enumerate(
-            records,
-            start=1
-        ):
-
-            workload_id = record[0]
-
-            faculty_name = record[3]
-
-            class_name = record[5]
-            class_department = record[6]
-            class_semester = record[7]
-            academic_year = record[8]
-
-            subject_code = record[10]
-            subject_name = record[11]
-
-            priority = record[12]
-            periods = record[13]
-
-            # -------------------------------------------------
-            # Class display
-            #
-            # Department intentionally removed.
-            # -------------------------------------------------
-
-            semester_display = (
-                self.format_semester(
-                    class_semester
-                )
-            )
-
-            class_display = (
-                f"{class_name} | "
-                f"{semester_display} | "
-                f"{academic_year}"
-            )
-
-            # -------------------------------------------------
-            # Subject display
-            # -------------------------------------------------
-
-            subject_display = (
-                f"{subject_code} - "
-                f"{subject_name}"
-            )
-
-            values = [
-                faculty_name,
-                class_display,
-                subject_display,
-                priority,
-                periods
-            ]
-
-            # =================================================
-            # DATA CELLS
-            # =================================================
-
-            for column, (
-                value,
-                width
-            ) in enumerate(
-                zip(values, widths)
-            ):
-
-                ctk.CTkLabel(
-                    self.list_frame,
-                    text=str(value),
-                    width=width,
-                    height=42,
-                    font=("Arial", 12),
-                    text_color=("#374151", "#E2E8F0"),
-                    fg_color=("#F4F4F5", "#2C2C2C"),
-                    corner_radius=4,
-                    anchor="w"
-                ).grid(
-                    row=row_number,
-                    column=column,
-                    padx=3,
-                    pady=3,
-                    sticky="ew"
-                )
-
-            # =================================================
-            # ACTION FRAME
-            # =================================================
-
-            action_frame = ctk.CTkFrame(
-                self.list_frame,
-                width=190,
-                height=42,
-                fg_color=("#F4F4F5", "#2C2C2C"),
-                corner_radius=4
-            )
-
-            action_frame.grid(
-                row=row_number,
-                column=5,
-                padx=3,
-                pady=3,
-                sticky="ew"
-            )
-
-            action_frame.grid_propagate(
-                False
-            )
-
-            # =================================================
-            # SELECT
-            # =================================================
-
-            ctk.CTkButton(
-                action_frame,
-                text="Select",
-                width=75,
-                height=30,
-                command=lambda rid=workload_id:
-                    self.select_workload(rid)
-            ).pack(
-                side="left",
-                padx=(8, 4),
-                pady=6
-            )
-
-            # =================================================
-            # DELETE
-            # =================================================
-
-            ctk.CTkButton(
-                action_frame,
-                text="Delete",
-                width=75,
-                height=30,
-                fg_color="#DC2626",
-                hover_color="#B91C1C",
-                command=lambda rid=workload_id:
-                    self.delete_workload_record(rid)
-            ).pack(
-                side="left",
-                padx=4,
-                pady=6
-            )
-
-    # =====================================================
-    # SELECT WORKLOAD
-    # =====================================================
-
-    def select_workload(
-        self,
-        workload_id
-    ):
-
-        records = get_all_workloads()
-
-        selected_record = None
-
-        for record in records:
-
-            if record[0] == workload_id:
-
-                selected_record = record
-
-                break
-
-        if selected_record is None:
-
-            messagebox.showerror(
-                "Error",
-                "Workload record could not be found.",
-                parent=self.window
-            )
-
-            return
-
-        self.selected_workload_id = (
-            workload_id
-        )
-
-        # =================================================
-        # FACULTY
-        # =================================================
-
-        faculty_db_id = selected_record[1]
-
-        for display, record_id in (
-            self.faculty_map.items()
-        ):
-
-            if record_id == faculty_db_id:
-
-                self.faculty_menu.set(
-                    display
-                )
-
-                break
-
-        # =================================================
-        # CLASS
-        # =================================================
-
-        class_db_id = selected_record[4]
-
-        selected_class_display = None
-
-        for display, record_id in (
-            self.class_map.items()
-        ):
-
-            if record_id == class_db_id:
-
-                selected_class_display = display
-
-                break
-
-        if selected_class_display:
-
-            self.class_menu.set(
-                selected_class_display
-            )
-
-            self.on_class_change(
-                selected_class_display
-            )
-
-        # =================================================
-        # SUBJECT
-        # =================================================
-
-        subject_db_id = selected_record[9]
-
-        for display, record_id in (
-            self.subject_map.items()
-        ):
-
-            if record_id == subject_db_id:
-
-                self.subject_menu.set(
-                    display
-                )
-
-                break
-
-        # =================================================
-        # PRIORITY
-        # =================================================
-
-        self.priority_menu.set(
-            selected_record[12]
-        )
-
-        # =================================================
-        # PERIODS
-        # =================================================
-
-        self.periods_menu.set(
-            str(
-                selected_record[13]
-            )
-        )
-
-    # =====================================================
-    # UPDATE WORKLOAD
-    # =====================================================
+            QMessageBox.critical(self, "Error", "Failed to assign workload. This Faculty-Class-Subject combination already exists.")
 
     def update_workload_record(self):
-
-        if self.selected_workload_id is None:
-
-            messagebox.showwarning(
-                "Select Workload",
-                (
-                    "Please select a workload record "
-                    "first."
-                ),
-                parent=self.window
-            )
-
+        if not self.selected_workload_id:
+            QMessageBox.warning(self, "Update", "Please select a workload record from the table to update.")
             return
 
-        data = self.validate_form()
+        fac_data = self.faculty_combo.currentData()
+        faculty_id = fac_data[0] if isinstance(fac_data, tuple) else fac_data
+        class_id = self.class_combo.currentData()
+        sub_data = self.subject_combo.currentData()
+        subject_id = sub_data[0] if isinstance(sub_data, tuple) else sub_data
 
-        if data is None:
-
+        try:
+            hrs = int(self.periods_entry.text().strip())
+            if hrs < 1 or hrs > 30:
+                raise ValueError()
+        except ValueError:
+            QMessageBox.warning(self, "Validation Error", "Periods/Week must be an integer between 1 and 30.")
             return
 
-        (
-            faculty_id,
-            class_id,
-            subject_id,
-            priority,
-            periods
-        ) = data
+        prio = self.priority_combo.currentText()
 
         success = update_workload(
-            self.selected_workload_id,
-            faculty_id,
-            class_id,
-            subject_id,
-            priority,
-            periods
+            workload_id=self.selected_workload_id,
+            faculty_id=faculty_id,
+            class_id=class_id,
+            subject_id=subject_id,
+            priority=prio,
+            periods_per_week=hrs
         )
 
         if success:
-
-            messagebox.showinfo(
-                "Success",
-                "Faculty workload updated successfully.",
-                parent=self.window
-            )
-
-            self.selected_workload_id = None
-
-            self.clear_form(
-                keep_faculty=True
-            )
-
+            QMessageBox.information(self, "Success", "Workload updated successfully!")
+            self.clear_form()
             self.load_workloads()
-
         else:
+            QMessageBox.critical(self, "Error", "Failed to update workload.")
 
-            messagebox.showerror(
-                "Update Failed",
-                (
-                    "This workload already exists "
-                    "or could not be updated."
-                ),
-                parent=self.window
-            )
-
-    # =====================================================
-    # DELETE WORKLOAD
-    # =====================================================
-
-    def delete_workload_record(
-        self,
-        workload_id
-    ):
-
-        confirm = messagebox.askyesno(
-            "Delete Workload",
-            (
-                "Are you sure you want to delete "
-                "this faculty workload?\n\n"
-                "This action cannot be undone."
-            ),
-            parent=self.window
-        )
-
-        if not confirm:
-
+    def delete_workload_record(self):
+        if not self.selected_workload_id:
+            QMessageBox.warning(self, "Delete", "Please select a workload record from the table to delete.")
             return
 
-        success = delete_workload(
-            workload_id
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Delete",
+            "Are you sure you want to remove this faculty workload assignment?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
-        if success:
+        if confirm == QMessageBox.StandardButton.Yes:
+            success = delete_workload(self.selected_workload_id)
+            if success:
+                QMessageBox.information(self, "Deleted", "Workload deleted successfully.")
+                self.clear_form()
+                self.load_workloads()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to delete workload.")
 
-            if (
-                self.selected_workload_id
-                == workload_id
-            ):
-
-                self.selected_workload_id = None
-
-                self.clear_form(
-                    keep_faculty=True
-                )
-
-            self.load_workloads()
-
-            messagebox.showinfo(
-                "Deleted",
-                "Faculty workload deleted successfully.",
-                parent=self.window
-            )
-
-        else:
-
-            messagebox.showerror(
-                "Delete Failed",
-                "The workload could not be deleted.",
-                parent=self.window
-            )
-
-    # =====================================================
-    # CLEAR FORM
-    # =====================================================
-
-    def clear_form(
-        self,
-        keep_faculty=False
-    ):
-
-        self.selected_workload_id = None
-
-        # -------------------------------------------------
-        # Keep currently selected faculty when adding
-        # multiple workloads from Faculty Management.
-        # -------------------------------------------------
-
-        current_faculty = None
-
-        if keep_faculty:
-
-            current_faculty = (
-                self.faculty_menu.get()
-            )
-
-        # -------------------------------------------------
-        # Priority
-        # -------------------------------------------------
-
-        self.priority_menu.set(
-            "Normal"
-        )
-
-        # -------------------------------------------------
-        # Periods
-        # -------------------------------------------------
-
-        self.periods_menu.set(
-            "5"
-        )
-
-        # -------------------------------------------------
-        # Restore faculty
-        # -------------------------------------------------
-
-        if keep_faculty and current_faculty:
-
-            self.faculty_menu.set(
-                current_faculty
-            )
-
-        elif self.faculty_map:
-
-            first_faculty = next(
-                iter(
-                    self.faculty_map
-                )
-            )
-
-            self.faculty_menu.set(
-                first_faculty
-            )
-
-        # -------------------------------------------------
-        # Restore first class
-        # -------------------------------------------------
-
-        if self.class_map:
-
-            first_class = next(
-                iter(
-                    self.class_map
-                )
-            )
-
-            self.class_menu.set(
-                first_class
-            )
-
-            self.on_class_change(
-                first_class
-            )
-
-    # =====================================================
-    # RUN
-    # =====================================================
-
-    def run(self):
-
-        self.window.mainloop()
-
-
-# =========================================================
-# STANDALONE TEST
-# =========================================================
 
 if __name__ == "__main__":
+    from database.database import create_tables
+    from ui.theme import apply_theme
 
-    app = AssignmentsWindow()
-
-    app.run()
+    create_tables()
+    app = QApplication.instance() or QApplication(sys.argv)
+    apply_theme()
+    win = AssignmentsWindow()
+    win.show()
+    sys.exit(app.exec())
